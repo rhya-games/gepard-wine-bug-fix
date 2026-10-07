@@ -16,8 +16,8 @@ yet:
 
 The offsets below are for the uaRO "World of Your Dream" OpenSetup build with
 the original SHA-256 recorded in ORIGINAL_SHA256.  The script refuses to touch
-anything else -- see the README section in SKILL.md for how to locate the
-equivalent bytes in a different build.
+anything else -- see DETAILS.md and SKILL.md for how to locate the equivalent
+bytes in a different build.
 
 Usage:  patch_opensetup_rosetta.py /path/to/setup.exe
 """
@@ -77,6 +77,19 @@ def main() -> int:
     if current not in KNOWN_INPUT_SHA256:
         raise SystemExit(f"Refusing to patch unrecognised OpenSetup build: {current}")
 
+    patched = bytearray(data)
+    for offset, original, replacement, _ in PATCHES:
+        if patched[offset : offset + len(original)] == original:
+            patched[offset : offset + len(original)] = replacement
+
+    # Every accepted input must end up byte-identical to the known patched build.
+    result = sha256(bytes(patched))
+    if result != PATCHED_SHA256:
+        raise SystemExit(
+            f"Refusing to write {setup}: the patched result ({result}) is not the expected "
+            f"build ({PATCHED_SHA256}). Nothing was changed."
+        )
+
     backup = setup.with_name(f"{setup.name}.original-{ORIGINAL_SHA256[:12]}.backup")
     if backup.exists():
         if sha256(backup.read_bytes()) != ORIGINAL_SHA256:
@@ -84,10 +97,8 @@ def main() -> int:
     else:
         shutil.copy2(setup, backup)
 
-    patched = bytearray(data)
     for offset, original, replacement, description in PATCHES:
-        if patched[offset : offset + len(original)] == original:
-            patched[offset : offset + len(original)] = replacement
+        if data[offset : offset + len(original)] == original:
             print(f"Patched 0x{offset:X}: {original.hex(' ')} -> {replacement.hex(' ')} ({description})")
 
     tmp = setup.with_name(f".{setup.name}.patching")
@@ -95,11 +106,8 @@ def main() -> int:
     shutil.copystat(setup, tmp)
     os.replace(tmp, setup)
 
-    result = sha256(bytes(patched))
     print(f"Backup:  {backup}")
     print(f"Patched: {result}")
-    if result != PATCHED_SHA256:
-        print(f"NOTE: expected {PATCHED_SHA256}; verify before shipping this result.")
     return 0
 
 

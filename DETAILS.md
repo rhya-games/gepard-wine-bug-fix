@@ -3,10 +3,19 @@
 Everything that is not needed for a normal install. For the simple steps, see
 [README.md](README.md).
 
+## Checksums
+
+    c2cc2d3a25b9b74bd2269b209debfbaaaafcf28c40def18ada05993aab80d701  wow64win.dll.crossover-26.3.0
+    5e829ee8b1338fa208c55d080ce6e0bbb827322e7b9883446c611708c180cae5  rawinput_overflow_probe.exe
+
+Verify with `shasum -a 256 <file>`. `install.sh` checks the DLL itself before copying.
+Build and license information is in [NOTICE](NOTICE).
+
 ## What each file is
 
 | file | what it is |
 |---|---|
+| `NOTICE` | license and build information for the shipped Wine DLL |
 | `Start Here.command` | double-click menu that runs `install.sh` for non-Terminal users |
 | `install.sh` | `install`, `check`, `uninstall`, `setup`; asks before quitting CrossOver or stopping leftover processes (`-y` answers yes) |
 | `wow64win.dll.crossover-26.3.0` | the fixed Wine file, prebuilt, **CrossOver 26.3.0 only** |
@@ -31,6 +40,28 @@ To undo, run the first two lines again in a Terminal window, then:
 
 The backup is named per CrossOver version, so an old backup is never restored over
 a newer CrossOver. `CX` and `V` only exist in the Terminal window where you typed them.
+
+## Optional Mac keyboard and swipe settings (how it works)
+
+`bash install.sh keys on` writes these values to `HKCU\Software\Wine\Mac Driver` in
+the chosen bottle (through `wine reg add`), and `keys off` deletes exactly those values:
+
+| value | set to | what Wine's Mac driver does |
+|---|---|---|
+| `LeftCommandIsCtrl` | `Y` | left Command sends Ctrl (default: Alt) |
+| `RightCommandIsCtrl` | `Y` | right Command sends Ctrl (default: Alt) |
+| `LeftOptionIsAlt` | `Y` | left Option sends Alt (default: sends nothing) |
+| `RightOptionIsAlt` | `Y` | right Option sends Alt (default: sends nothing) |
+| `CaptureDisplaysForFullscreen` | `N` | do not capture the display for full screen (this is Wine's default, written explicitly) |
+
+The Mac Control keys already map to Left/Right Ctrl by default, so no setting is needed.
+Wine itself warns when both Command keys are Ctrl and neither Option is Alt ("There is no
+way to send an Alt key"), which is why the settings are applied together. The value names
+were checked against Wine's `dlls/winemac.drv/macdrv_main.c` and the default key table in
+`keyboard.c`; swipe gestures depend on macOS (display capture off, a full-screen Space,
+and the Trackpad gesture enabled in System Settings). The driver reads the values when
+the bottle starts, so CrossOver must be restarted. `keys off` restores Wine's defaults,
+not any custom values you had set for these names beforehand.
 
 ## Other CrossOver versions, or other Wine runtimes
 
@@ -115,12 +146,35 @@ Claude.
 
 ## New installs: the OpenSetup patch
 
-Graphics settings live in `HKCU\Software\Gravity\RagnarokOnline`. With no
-settings there, the first launch runs OpenSetup (`setup.exe`) — and stock
-OpenSetup dies instantly under Rosetta 2 on two undocumented x87 encodings
-(`DC D8`, `DC D0`, aliases of `FCOMP`/`FCOM ST(0)` that real x86 accepts), and it
-also pulls in the Gepard-hooked `mss32.dll`. `patch_opensetup_rosetta.py` fixes
-all three, hash-guarded, with a backup.
+This is separate from the main fix above. The main fix is a change inside Wine; this
+one only edits the game's own setup program (`setup.exe`), and nothing else.
+
+On a new install the graphics settings key (`HKCU\Software\Gravity\RagnarokOnline`)
+is empty, so the first launch runs OpenSetup (`setup.exe`) instead of the game. Stock
+OpenSetup dies instantly under Rosetta 2 on two undocumented x87 encodings (`DC D8`,
+`DC D0`, aliases of `FCOMP`/`FCOM ST(0)` that real x86 accepts), and it also loads
+`mss32.dll` (the Miles audio library, which the protection hooks in the game).
+`patch_opensetup_rosetta.py` fixes all three:
+
+| offset | change | why |
+|---|---|---|
+| `0x21E39` | `DC D8` to `D8 D8` | documented encoding of `FCOMP ST(0)` |
+| `0x2C0CD` | `DC D0` to `D8 D0` | documented encoding of `FCOM ST(0)` |
+| `0x43C08` | `mss32.dll` to `mss32.off` | setup does not need audio, so it skips that library |
+
+What it does and does not do:
+- It edits only `setup.exe`. It does not touch the game executable, the game's copy of
+  `mss32.dll`, or any anti-cheat file; the game still loads everything normally.
+- It only accepts the one known `setup.exe` build (checked by SHA-256 and by the bytes at
+  those offsets), makes a backup next to the file, and refuses to write anything that
+  would not end up byte-identical to the known patched build.
+- It is a convenience for running the setup window under macOS. If you are not
+  comfortable modifying a file from the game's installer, skip it and set your graphics
+  options another way. Check your server's rules if in doubt.
+- For a different build, find the real offsets: run `setup.exe` with `--debugmsg "+seh"`,
+  take the `ExceptionAddress` of the illegal-instruction exception, subtract the module
+  base for the RVA, convert it to a file offset with the section table, and check that the
+  bytes there are `DC D8` or `DC D0`.
 
 ## Notes
 

@@ -46,7 +46,9 @@ You want: `RESULT: the fix is installed and working.`
 (the first launch shows a graphics setup window that crashes), also run this. Do it
 **after the game is installed in your CrossOver bottle**, and again if you ever
 reinstall the game or make a new bottle, because the patch applies to the
-`setup.exe` file in the bottle, not to the bottle itself:
+`setup.exe` file in the bottle, not to the bottle itself. This touches only the
+game's setup program (not the game or its protection); details are in
+[DETAILS.md](DETAILS.md):
 
     bash install.sh setup
 
@@ -61,6 +63,26 @@ Open Terminal, go to this folder the same way as in step 2, and run:
     bash install.sh uninstall
 
 This puts the original file back (it asks before quitting CrossOver if it is open).
+
+## Optional: Mac keyboard and swipe settings
+
+Not needed for the fix. These make the game feel more natural on a Mac, and you can
+turn them on and off any time:
+
+    bash install.sh keys on
+
+- **Command works as Ctrl** (Cmd+C, Cmd+V and similar).
+- **Mac Control key stays Left Ctrl** (Wine already does this, so nothing to change).
+- **Option works as Alt** (so you still have an Alt key when Command is Ctrl).
+- **Swipe gestures work in full screen** (Wine will not capture the display).
+
+Then quit CrossOver completely and reopen it; the settings load when the bottle starts.
+To go back to normal: `bash install.sh keys off`. To see what is set:
+`bash install.sh keys status`. The double-click menu has the same options (item 5).
+
+If swiping between full-screen apps still does nothing, check System Settings, Trackpad,
+More Gestures ("Swipe between full-screen apps"), and that the game is in a full-screen
+Space (green button) and not just a borderless window.
 
 ## If something goes wrong
 
@@ -86,5 +108,5 @@ the bug. If it does, see [DETAILS.md](DETAILS.md) for other versions.
 ## More
 
 [DETAILS.md](DETAILS.md) has the technical cause, which versions are affected, the
-checks, other CrossOver versions, and manual steps. Worth reporting upstream at
+checks, other CrossOver versions, and manual steps. Build and license information is in [NOTICE](NOTICE). Worth reporting upstream at
 https://bugs.winehq.org/ so it reaches every wrapper.

@@ -1,0 +1,35 @@
+Third-party software notice
+===========================
+
+wow64win.dll.crossover-26.3.0
+-----------------------------
+This file is a modified build of wow64win.dll from Wine, as shipped in
+CrossOver 26.3.0. Wine is free software licensed under the GNU Lesser General
+Public License, version 2.1 or later:
+
+    https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt
+
+Corresponding source (CrossOver 26.3.0 sources, path sources/wine):
+
+    https://media.codeweavers.com/pub/crossover/source/crossover-sources-26.3.0.tar.gz
+
+Modification: the one-line change in wow64win-rawinput-devicelist.patch, applied
+to dlls/wow64win/user.c. Nothing else was changed.
+
+Built with a mingw-w64 cross compiler (GCC 15.2.0) using the build steps in
+SKILL.md ("Build the fixed wow64win.dll"). To reproduce the binary, or to build one
+for another version, apply the patch to the matching sources and follow those steps.
+
+SHA-256: c2cc2d3a25b9b74bd2269b209debfbaaaafcf28c40def18ada05993aab80d701
+
+This project is not affiliated with, endorsed by, or supported by the Wine
+project, CodeWeavers, or Gravity. "Wine" and "CrossOver" are used only to
+describe compatibility. The scripts and documents in this repository are separate
+from the Wine file above and are not covered by that license.
+
+rawinput_overflow_probe.exe
+---------------------------
+Built from rawinput_overflow_probe.c in this repository (a small test program that
+only calls the Windows GetRawInputDeviceList API).
+
+SHA-256: 5e829ee8b1338fa208c55d080ce6e0bbb827322e7b9883446c611708c180cae5

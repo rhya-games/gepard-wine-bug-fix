@@ -5,6 +5,9 @@
 #   bash install.sh check        is the bug present / is the fix working?
 #   bash install.sh uninstall    put the original file back
 #   bash install.sh setup        new installs only: patch the game's setup.exe
+#   bash install.sh keys on      optional: Mac Command=Ctrl, Option=Alt, swipe gestures
+#   bash install.sh keys off     undo the optional Mac key / gesture settings
+#   bash install.sh keys status  show what is set
 #
 # Add -y to answer "yes" to the questions (quit CrossOver, stop leftovers).
 #
@@ -27,10 +30,14 @@ fi
 
 ASSUME_YES=0
 CMD=""
+ARG1=""
+n=0
 for arg in "$@"; do
     case "$arg" in
         -y|--yes) ASSUME_YES=1 ;;
-        *) [ -z "$CMD" ] && CMD="$arg" ;;
+        *)
+            n=$((n + 1))
+            case $n in 1) CMD="$arg" ;; 2) ARG1="$arg" ;; esac ;;
     esac
 done
 
@@ -142,27 +149,35 @@ If CrossOver was updated since you installed the fix, the fix is already gone."
     echo "Original file restored. The fix is removed."
 }
 
-do_check() {
+# Sets BOTTLE_NAME; asks if there is more than one bottle.
+pick_bottle() {
     local bottles="$HOME/Library/Application Support/CrossOver/Bottles"
-    local probe="rawinput_overflow_probe.exe"
-    [ -f "$probe" ] || die "$probe is missing. Run this from the downloaded folder."
     [ -d "$bottles" ] || die "No CrossOver bottles found. Create one in CrossOver first."
-
     local names=() d
     for d in "$bottles"/*/; do [ -d "$d" ] && names+=("$(basename "$d")"); done
     [ ${#names[@]} -gt 0 ] || die "No CrossOver bottles found. Create one in CrossOver first."
 
-    local bottle="${names[0]}"
+    BOTTLE_NAME="${names[0]}"
     if [ ${#names[@]} -gt 1 ]; then
-        echo "Which bottle should I test with?"
+        echo "Which bottle?"
         local i=1
         for d in "${names[@]}"; do echo "  $i) $d"; i=$((i + 1)); done
         printf "Number: "
         read -r n
         case "$n" in ''|*[!0-9]*) die "Not a number." ;; esac
         [ "$n" -ge 1 ] && [ "$n" -le ${#names[@]} ] || die "Not in the list."
-        bottle="${names[$((n - 1))]}"
+        BOTTLE_NAME="${names[$((n - 1))]}"
     fi
+}
+
+do_check() {
+    local bottles="$HOME/Library/Application Support/CrossOver/Bottles"
+    local probe="rawinput_overflow_probe.exe"
+    [ -f "$probe" ] || die "$probe is missing. Run this from the downloaded folder."
+    [ -d "$bottles" ] || die "No CrossOver bottles found. Create one in CrossOver first."
+
+    pick_bottle
+    local bottle="$BOTTLE_NAME"
 
     local installed="no"
     cmp -s "$DLL_SRC" "$DLL" 2>/dev/null && installed="yes"
@@ -203,6 +218,67 @@ do_check() {
     esac
 }
 
+# Optional Mac keyboard / trackpad settings, stored in the bottle's registry under
+# HKCU\Software\Wine\Mac Driver. Wine reads them when the bottle starts.
+KEYS_KEY='HKCU\Software\Wine\Mac Driver'
+KEYS_ON="LeftCommandIsCtrl=Y RightCommandIsCtrl=Y LeftOptionIsAlt=Y RightOptionIsAlt=Y CaptureDisplaysForFullscreen=N"
+
+keys_wine() {
+    "$CX_APP/Contents/SharedSupport/CrossOver/bin/wine" --bottle "$BOTTLE_NAME" --no-gui "$@" 2>/dev/null
+}
+
+keys_value() {   # prints the stored value of $1, or nothing
+    keys_wine reg query "$KEYS_KEY" /v "$1" | awk -v n="$1" '$1 == n {print $NF}' | tr -d '\r'
+}
+
+do_keys_status() {
+    local pair name v
+    echo "Bottle: $BOTTLE_NAME"
+    for pair in $KEYS_ON; do
+        name="${pair%%=*}"
+        v=$(keys_value "$name")
+        printf "  %-30s %s\n" "$name" "${v:-not set (Wine default)}"
+    done
+    echo
+    echo "  Mac Control key -> Left Ctrl is Wine's default; nothing to set."
+}
+
+do_keys() {
+    local action="${ARG1:-status}"
+    case "$action" in on|off|status) ;; *) die "Usage: bash install.sh keys [on|off|status]" ;; esac
+    pick_bottle
+    local pair name val
+
+    case "$action" in
+        on)
+            for pair in $KEYS_ON; do
+                name="${pair%%=*}"; val="${pair#*=}"
+                keys_wine reg add "$KEYS_KEY" /v "$name" /t REG_SZ /d "$val" /f >/dev/null \
+                    || die "Could not write the setting $name to the bottle."
+            done
+            echo "Turned on, for bottle $BOTTLE_NAME:"
+            echo "  - Command keys work as Ctrl (so Cmd+C, Cmd+V and similar work)"
+            echo "  - Mac Control key = Left Ctrl (Wine's default, unchanged)"
+            echo "  - Option keys work as Alt"
+            echo "  - Swipe gestures stay available in full screen (Wine does not capture the display)"
+            echo
+            echo "Quit CrossOver completely and reopen it, then start the game. Settings load when"
+            echo "the bottle starts."
+            ;;
+        off)
+            for pair in $KEYS_ON; do
+                name="${pair%%=*}"
+                keys_wine reg delete "$KEYS_KEY" /v "$name" /f >/dev/null
+            done
+            echo "Turned off for bottle $BOTTLE_NAME. Wine's defaults are back"
+            echo "(Command = Alt, Option = unused). Restart CrossOver to apply."
+            ;;
+        status)
+            do_keys_status
+            ;;
+    esac
+}
+
 do_setup() {
     local bottles="$HOME/Library/Application Support/CrossOver/Bottles"
     [ -d "$bottles" ] || die "No CrossOver bottles found at $bottles"
@@ -237,6 +313,7 @@ case "${CMD:-install}" in
     install)   do_install ;;
     uninstall) do_uninstall ;;
     check)     do_check ;;
+    keys)      do_keys ;;
     setup)     do_setup ;;
-    *)         echo "Usage: bash install.sh [install|check|uninstall|setup] [-y]"; exit 1 ;;
+    *)         echo "Usage: bash install.sh [install|check|uninstall|setup|keys] [-y]"; exit 1 ;;
 esac
