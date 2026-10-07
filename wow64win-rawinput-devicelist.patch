@@ -1,0 +1,34 @@
+Fix wow64_NtUserGetRawInputDeviceList() copying uninitialised entries.
+
+NtUserGetRawInputDeviceList() (dlls/win32u/rawinput.c) returns the number of
+devices it stored in the caller's buffer and, unlike the !device_list and the
+insufficient-buffer paths, leaves *device_count at the capacity the caller
+passed in.  The wow64 thunk however converted *count entries back to the 32-bit
+layout, so every entry past the real device count was copied out of the
+uninitialised Wow64AllocateTemp() block into the 32-bit caller's buffer.
+
+A 32-bit application that passes a large capacity therefore gets its buffer
+filled with garbage far beyond the devices that exist; the 64-bit path writes
+only the entries that were found.  In the uaRO/Ragnarok client the Gepard
+anti-cheat module asks for up to 240 devices while only 2 exist, and the 238
+garbage entries overwrite its stack frame.  Its worker thread then returns to a
+bogus address and dies.  Much later, when a map is loaded, Gepard's watchdog
+polls that thread, finds ExitStatus == 0 and aborts with
+"Gepard::T Code: 3::110::12".
+
+--- a/dlls/wow64win/user.c
++++ b/dlls/wow64win/user.c
+@@ -3041,7 +3041,13 @@ NTSTATUS WINAPI wow64_NtUserGetRawInputDeviceList( UINT *args )
+         ret = NtUserGetRawInputDeviceList( devices64, count, sizeof(RAWINPUTDEVICELIST) );
+         if (ret == ~0u) return ret;
+ 
+-        for (i = 0; i < *count; ++i)
++        /* NtUserGetRawInputDeviceList() returns the number of devices it stored and
++         * leaves *count at the caller supplied capacity, so only ret entries of
++         * devices64 have been initialised.  Copying *count entries would fill the
++         * rest of the caller's buffer with uninitialised memory, which the 64-bit
++         * path never does. */
++        for (i = 0; i < ret; ++i)
+         {
+             devices32[i].hDevice = (UINT_PTR)devices64[i].hDevice;
+             devices32[i].dwType  = devices64[i].dwType;
