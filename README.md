@@ -32,7 +32,10 @@ It should say "Installed the fix". If it says STOP, read the message; it tells y
 what to do.
 
 **5. New game install only.** If you have never reached the game's login screen
-(the first launch shows a graphics setup window that crashes), also run:
+(the first launch shows a graphics setup window that crashes), also run this. Do it
+**after the game is installed in your CrossOver bottle**, and again if you ever
+reinstall the game or make a new bottle, because the patch applies to the
+`setup.exe` file in the bottle, not to the bottle itself:
 
     bash install.sh setup
 
