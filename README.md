@@ -14,10 +14,9 @@ a Gepard bug and not a broken install, and this fix does not touch the anti-chea
 
 You will copy and paste a few commands into the **Terminal** app.
 
-**1. Download this folder.** On the GitHub page for this project, click the green
-**Code** button, then **Download ZIP**. Your browser saves it to your Downloads
-folder (Safari unzips it automatically; otherwise double-click the ZIP). You get a
-folder named something like `gepard-wine-bug-fix-main`.
+**1. [Download the ZIP](https://github.com/rhya-games/gepard-wine-bug-fix/archive/refs/heads/main.zip).**
+It saves to your Downloads folder. Safari unzips it automatically; otherwise
+double-click it. You get a folder called `gepard-wine-bug-fix-main`.
 
 **2. Open Terminal and go to that folder.** Open Terminal with Spotlight: press
 `Cmd + Space`, type `Terminal`, press Return. Then type `cd ` (with a space after
