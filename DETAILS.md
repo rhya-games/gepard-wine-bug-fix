@@ -20,7 +20,7 @@ Everything that is not needed for a normal install. For the simple steps, see
 Quit CrossOver, then in Terminal, from the downloaded folder:
 
     CX="/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/lib/wine/x86_64-windows"
-    V=$(defaults read /Applications/CrossOver.app/Contents/Info.plist CFBundleShortVersionString)
+    V=$(defaults read /Applications/CrossOver.app/Contents/Info.plist CFBundleVersion | cut -d. -f1-3)
     [ -e "$CX/wow64win.dll.orig-$V" ] || cp -p "$CX/wow64win.dll" "$CX/wow64win.dll.orig-$V"
     cp wow64win.dll.crossover-26.3.0 "$CX/wow64win.dll"
 

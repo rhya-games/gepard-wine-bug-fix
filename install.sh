@@ -28,7 +28,8 @@ die() { echo; echo "STOP: $*"; exit 1; }
 
 DLL_DIR="$CX_APP/Contents/SharedSupport/CrossOver/lib/wine/x86_64-windows"
 DLL="$DLL_DIR/wow64win.dll"
-VERSION=$(defaults read "$CX_APP/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null)
+# CFBundleShortVersionString is just "26.3"; CFBundleVersion is "26.3.0.39832".
+VERSION=$(defaults read "$CX_APP/Contents/Info.plist" CFBundleVersion 2>/dev/null | cut -d. -f1-3)
 BACKUP="$DLL.orig-$VERSION"
 
 [ -f "$DLL" ] || die "Could not find $DLL"

@@ -60,36 +60,107 @@ click OK.
 
 ## Step 1 — confirm the bug is present
 
-Build and run this probe inside the bottle (needs `brew install mingw-w64`):
+Save this as `rio_probe.c`. It fills a 240-entry buffer with `0xCC`, calls
+`GetRawInputDeviceList`, and counts the entries past the returned device count that
+got overwritten — the bug itself, not a proxy for it. Needs `brew install mingw-w64`.
 
 ```c
+/* Portable detector for the wow64_NtUserGetRawInputDeviceList() overflow.
+ *
+ * GetRawInputDeviceList(buf, &count, size) must fill exactly `ret` entries and
+ * leave the rest of the caller's buffer untouched.  Wine's WoW64 thunk converts
+ * `*count` entries instead -- the capacity the caller passed in -- so every
+ * entry past the real device count is copied out of an uninitialised temp block
+ * into the caller's buffer.
+ *
+ * Run as a 32-bit binary.  A clean runtime prints AFFECTED=no.
+ */
 #include <windows.h>
 #include <stdio.h>
-int main(void){
-    RAWINPUTDEVICELIST list[64]; UINT count=64,r;
-    r=GetRawInputDeviceList(NULL,&count,sizeof(RAWINPUTDEVICELIST));
-    printf("query : ret=%u count=%u\n",r,count);
-    count=64;
-    r=GetRawInputDeviceList(list,&count,sizeof(RAWINPUTDEVICELIST));
-    printf("fill  : ret=%u count=%u\n",r,count);
-    return 0;
+
+#define CAP 240   /* what Gepard asks for */
+
+int main(void)
+{
+    RAWINPUTDEVICELIST buf[CAP];
+    UINT count, ret, i, real, dirty = 0, first_dirty = 0;
+
+    count = 0;
+    ret = GetRawInputDeviceList(NULL, &count, sizeof(RAWINPUTDEVICELIST));
+    printf("query   : ret=%d  devices=%u\n", (int)ret, count);
+    real = count;
+
+    memset(buf, 0xCC, sizeof(buf));
+    count = CAP;
+    ret = GetRawInputDeviceList(buf, &count, sizeof(RAWINPUTDEVICELIST));
+    printf("fill    : ret=%d  count_out=%u  capacity_in=%u\n", (int)ret, count, CAP);
+
+    if (ret == (UINT)-1) { printf("call failed, cannot judge\n"); return 2; }
+
+    for (i = ret; i < CAP; i++)
+    {
+        if (buf[i].hDevice != (HANDLE)(ULONG_PTR)0xCCCCCCCC || buf[i].dwType != 0xCCCCCCCC)
+        {
+            if (!dirty) first_dirty = i;
+            dirty++;
+        }
+    }
+
+    printf("devices returned : %u\n", ret);
+    printf("entries clobbered past the returned count : %u", dirty);
+    if (dirty) printf("  (first at index %u)", first_dirty);
+    printf("\n");
+
+    if (dirty)
+    {
+        printf("sample of clobbered entries:\n");
+        for (i = first_dirty; i < first_dirty + 4 && i < CAP; i++)
+            printf("    [%3u] hDevice=%p dwType=%08x\n", i, buf[i].hDevice, (unsigned)buf[i].dwType);
+    }
+
+    printf("AFFECTED=%s\n", dirty ? "yes" : "no");
+    return dirty ? 1 : 0;
 }
 ```
 
 ```sh
-i686-w64-mingw32-gcc -O1 -o probe.exe probe.c -luser32
-cp probe.exe "$HOME/Library/Application Support/CrossOver/Bottles/<BOTTLE>/drive_c/"
-"/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wine" \
-    --bottle <BOTTLE> --no-gui --debugmsg -all --cx-app 'C:\probe.exe'
+i686-w64-mingw32-gcc -O1 -o /tmp/rio_probe.exe rio_probe.c -luser32
 ```
 
-`fill : ret=2 count=64` — `ret` is the real device count while `count` stayed at
-the input capacity. That mismatch is what the thunk wrongly relied on.
+CrossOver bottle:
+
+```sh
+cp /tmp/rio_probe.exe "$HOME/Library/Application Support/CrossOver/Bottles/<BOTTLE>/drive_c/"
+"/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/bin/wine" \
+    --bottle <BOTTLE> --no-gui --debugmsg -all --cx-app 'C:\rio_probe.exe'
+```
+
+Any other Wine (Sikarugir engine, Whisky, plain Wine) — use that runtime's own `bin/wine`:
+
+```sh
+env WINEPREFIX=/some/prefix WINEDEBUG=-all /path/to/wswine.bundle/bin/wine /tmp/rio_probe.exe
+```
+
+Broken runtime:
+
+```
+fill    : ret=2  count_out=240  capacity_in=240
+entries clobbered past the returned count : 238  (first at index 2)
+AFFECTED=yes
+```
+
+A fixed runtime prints `entries clobbered ... : 0` and `AFFECTED=no`. `count_out`
+stays at 240 either way — win32u genuinely does not update it, and that is exactly
+what the thunk wrongly relied on. If it says `AFFECTED=no`, stop: nothing to fix.
 
 ## Step 2 — build the fixed DLL
 
+(Shortcut: if this checkout contains `wow64win.dll.crossover-26.3.0` and `install.sh`
+and CrossOver is exactly 26.3.0, run `bash install.sh` with CrossOver quit, then skip to
+Step 4. Otherwise build from matching sources as below.)
+
 ```sh
-V=$(defaults read /Applications/CrossOver.app/Contents/Info.plist CFBundleShortVersionString)
+V=$(defaults read /Applications/CrossOver.app/Contents/Info.plist CFBundleVersion | cut -d. -f1-3)
 curl -o /tmp/cx-src.tar.gz "https://media.codeweavers.com/pub/crossover/source/crossover-sources-$V.tar.gz"
 mkdir -p /tmp/cxsrc && tar -xzf /tmp/cx-src.tar.gz -C /tmp/cxsrc
 ```
@@ -115,11 +186,14 @@ arch -x86_64 /usr/bin/make -j4 dlls/wow64win/x86_64-windows/wow64win.dll
 
 Wine resolves builtin PE modules from the directory of the `ntdll.so` that was
 actually loaded, **not** from `WINEDLLPATH` — a directory holding only the
-replacement DLL is silently ignored. Simplest reliable option, with a backup:
+replacement DLL is silently ignored. For a non-CrossOver runtime (Sikarugir, Whisky,
+plain Wine), put a DLL built from that runtime's matching Wine version into its own
+`lib/wine/x86_64-windows/`, next to its `ntdll.so`. For CrossOver, the simplest
+reliable option, with a backup:
 
 ```sh
 CX="/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/lib/wine/x86_64-windows"
-V=$(defaults read /Applications/CrossOver.app/Contents/Info.plist CFBundleShortVersionString)
+V=$(defaults read /Applications/CrossOver.app/Contents/Info.plist CFBundleVersion | cut -d. -f1-3)
 [ -e "$CX/wow64win.dll.orig-$V" ] || cp -p "$CX/wow64win.dll" "$CX/wow64win.dll.orig-$V"
 cp /tmp/cxbuild/dlls/wow64win/x86_64-windows/wow64win.dll "$CX/wow64win.dll"
 ```
@@ -131,14 +205,18 @@ per-bottle overlay instead: it must contain a real copy (not a symlink) of
 because that copy is what anchors the lookup; then point `BinPath`/`LibPath` in
 `cxbottle.conf` at the overlay.
 
-## Step 4 — verify, both gates
+## Step 4 — verify, all three gates must pass
+
+**Gate 1 — the right file is loaded.** With the client running:
 
 ```sh
 P=$(pgrep -f "<CLIENT>.exe" | head -1)
 lsof -p "$P" | grep -o "[^ ]*wow64win.dll" | sort -u    # must be the path you deployed to
 ```
 
-Then relaunch and compare with the pre-fix behaviour:
+**Gate 2 — the bug is gone.** Re-run the probe; it must print `AFFECTED=no`.
+
+**Gate 3 — the crash is gone.** Relaunch and compare with the pre-fix behaviour:
 
 | | before | after |
 |---|---|---|
@@ -148,4 +226,5 @@ Then relaunch and compare with the pre-fix behaviour:
 
 Finally I log in and load a map — that is where the watchdog check runs.
 
-Rollback: `mv "$CX/wow64win.dll.orig-$V" "$CX/wow64win.dll"`.
+Rollback: `mv "$CX/wow64win.dll.orig-$V" "$CX/wow64win.dll"` (re-set `CX` and `V` first
+if this is a new shell).

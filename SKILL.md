@@ -89,7 +89,7 @@ Confirm all of these before touching anything:
 Get the exact version — the fix must be built against matching sources:
 
 ```sh
-defaults read /Applications/CrossOver.app/Contents/Info.plist CFBundleShortVersionString
+defaults read /Applications/CrossOver.app/Contents/Info.plist CFBundleVersion | cut -d. -f1-3
 ```
 
 (The app may also live in `~/Applications/CrossOver.app`.)
@@ -167,7 +167,7 @@ Deploy — but only if it was built from the **same CrossOver version**. Otherwi
 build it:
 
 ```sh
-V=26.3.0        # must match CFBundleShortVersionString exactly
+V=26.3.0        # first three fields of CFBundleVersion (CFBundleShortVersionString says just "26.3")
 curl -o /tmp/crossover-sources-$V.tar.gz \
      "https://media.codeweavers.com/pub/crossover/source/crossover-sources-$V.tar.gz"
 mkdir -p /tmp/cxsrc && tar -xzf /tmp/crossover-sources-$V.tar.gz -C /tmp/cxsrc
@@ -200,6 +200,11 @@ arch -x86_64 /usr/bin/make -j4 dlls/wow64win/x86_64-windows/wow64win.dll
 
 ## Deploy
 
+**Shortcut for CrossOver 26.3.0:** with CrossOver quit, `bash install.sh` does the
+version check, versioned backup, install and verification (`bash install.sh
+uninstall` reverts; `bash install.sh setup` runs the OpenSetup patch). The manual
+steps below are for every other version and runtime.
+
 For a non-CrossOver runtime (Sikarugir engine, Whisky, plain Wine) the DLL simply
 goes into that runtime's own `lib/wine/x86_64-windows/`, next to its `ntdll.so`
 — e.g. `<engine>/wswine.bundle/lib/wine/x86_64-windows/wow64win.dll`. Build it
@@ -214,7 +219,7 @@ finish with the lsof check.
 
 ```sh
 CX="/Applications/CrossOver.app/Contents/SharedSupport/CrossOver/lib/wine/x86_64-windows"
-V=$(defaults read /Applications/CrossOver.app/Contents/Info.plist CFBundleShortVersionString)
+V=$(defaults read /Applications/CrossOver.app/Contents/Info.plist CFBundleVersion | cut -d. -f1-3)
 [ -e "$CX/wow64win.dll.orig-$V" ] || cp -p "$CX/wow64win.dll" "$CX/wow64win.dll.orig-$V"      # backup first
 cp /tmp/cxbuild/dlls/wow64win/x86_64-windows/wow64win.dll "$CX/wow64win.dll"
 ```
@@ -237,7 +242,7 @@ symlink everything else, drop the patched `wow64win.dll` into the overlay's
 "LibPath" = "<overlay>/lib:${CX_ROOT}/lib"
 ```
 
-## Verify — both gates must pass
+## Verify — all three gates must pass
 
 **Gate 1 — the right file is loaded.** Launch the app, then:
 
@@ -266,7 +271,7 @@ watchdog check that produces the T-code only runs there.
 
 ## Rollback
 
-Option A: `mv "$CX/wow64win.dll.orig-$V" "$CX/wow64win.dll"`.
+Option A: `mv "$CX/wow64win.dll.orig-$V" "$CX/wow64win.dll"` (re-set `CX` and `V` first if this is a new shell), or `bash install.sh uninstall`.
 Option B: restore the `wow64win.dll` symlink in the overlay, or revert the
 `cxbottle.conf` backup.
 
