@@ -12,7 +12,13 @@ a Gepard bug and not a broken install, and this fix does not touch the anti-chea
 
 ## How to install
 
-You will copy and paste a few commands into the **Terminal** app.
+**Easiest way:** download the ZIP (step 1 below), then in the unzipped folder
+**right-click `Start Here.command` and choose Open**, then click Open again when macOS
+asks (it asks once, because the file came from the internet). A menu appears: type
+`1` and press Return. When it finishes, type `2` to check it worked.
+
+If that does not open, or you prefer typing, use the Terminal steps below. You will
+copy and paste a few commands into the **Terminal** app.
 
 **1. [Download the ZIP](https://github.com/rhya-games/gepard-wine-bug-fix/archive/refs/heads/main.zip).**
 It saves to your Downloads folder. Safari unzips it automatically; otherwise
@@ -55,6 +61,21 @@ Open Terminal, go to this folder the same way as in step 2, and run:
     bash install.sh uninstall
 
 This puts the original file back (it asks before quitting CrossOver if it is open).
+
+## If something goes wrong
+
+- **"permission denied" when running `install.sh`:** use `bash install.sh` (with
+  `bash` at the front), exactly as written above.
+- **"No permission to change files inside CrossOver.app":** open System Settings,
+  Privacy & Security, App Management, turn on Terminal, then quit and reopen Terminal.
+- **"The program setup.exe has encountered a serious problem":** run
+  `bash install.sh setup` (step 5). It patches the `setup.exe` inside your bottle;
+  patching a different copy does nothing.
+- **CrossOver freezes or will not open after you force-quit it:** run
+  `bash install.sh`. It finds leftover processes and offers to stop them.
+- **The game still shows the 3::110 error:** run `bash install.sh check`. If it says
+  the fix is working, make sure you started the game after installing, with CrossOver
+  closed and reopened.
 
 ## After a CrossOver update
 

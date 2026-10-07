@@ -105,8 +105,13 @@ another user, run the command with sudo instead.)"
 }
 
 do_install() {
-    [ "$VERSION" = "$SUPPORTED" ] || die "This fix is built for CrossOver $SUPPORTED only; you have ${VERSION:-unknown}.
-Rebuild it for your version (see DETAILS.md), or check whether you still need it."
+    if [ "$VERSION" != "$SUPPORTED" ]; then
+        echo "The ready-made fix is for CrossOver $SUPPORTED only; you have ${VERSION:-an unknown version}."
+        echo "Checking whether your version has the bug at all..."
+        echo
+        do_check
+        return
+    fi
     [ -f "$DLL_SRC" ] || die "$DLL_SRC is missing. Run this from the downloaded folder."
     [ "$(shasum -a 256 "$DLL_SRC" | cut -d' ' -f1)" = "$DLL_SHA256" ] \
         || die "$DLL_SRC does not match the expected checksum. Re-download it."
@@ -185,8 +190,11 @@ do_check() {
                 echo "RESULT: the fix is installed, but the bug is still showing."
                 echo "Quit CrossOver completely (and leftovers: bash install.sh does this), then"
                 echo "run 'bash install.sh check' again."
-            else
+            elif [ "$VERSION" = "$SUPPORTED" ]; then
                 echo "RESULT: the bug is present. Run:  bash install.sh"
+            else
+                echo "RESULT: the bug is present, but there is no ready-made fix for CrossOver"
+                echo "$VERSION yet. See DETAILS.md (\"Other CrossOver versions\") to build one."
             fi ;;
         *)
             echo "RESULT: the test did not finish. Output was:"
