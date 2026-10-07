@@ -7,7 +7,7 @@ Everything that is not needed for a normal install. For the simple steps, see
 
 | file | what it is |
 |---|---|
-| `install.sh` | installs / removes the fix, and patches the game's setup program |
+| `install.sh` | `install`, `check`, `uninstall`, `setup`; asks before quitting CrossOver or stopping leftover processes (`-y` answers yes) |
 | `wow64win.dll.crossover-26.3.0` | the fixed Wine file, prebuilt, **CrossOver 26.3.0 only** |
 | `patch_opensetup_rosetta.py` | first-run setup.exe fix (used by `bash install.sh setup`) |
 | `rawinput_overflow_probe.c` / `.exe` | detects the bug, and confirms the fix |
