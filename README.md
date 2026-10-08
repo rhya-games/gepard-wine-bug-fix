@@ -12,6 +12,10 @@ a Gepard bug and not a broken install, and this fix does not touch the anti-chea
 
 ## How to install
 
+**Before you start:** install the game in CrossOver first (create a bottle and install
+Ragnarok Online into it). Run everything in this package only after the game is installed.
+The scripts check for this and stop with a message if they cannot find the game.
+
 **Easiest way:** download the ZIP (step 1 below), then in the unzipped folder
 **right-click `Start Here.command` and choose Open**, then click Open again when macOS
 asks (it asks once, because the file came from the internet). A menu appears: type
@@ -42,17 +46,12 @@ you what to do.
 
 You want: `RESULT: the fix is installed and working.`
 
-**5. New game install only.** If you have never reached the game's login screen
-(the first launch shows a graphics setup window that crashes), also run this. Do it
-**after the game is installed in your CrossOver bottle**, and again if you ever
-reinstall the game or make a new bottle, because the patch applies to the
-`setup.exe` file in the bottle, not to the bottle itself. This touches only the
-game's setup program (not the game or its protection); details are in
-[DETAILS.md](DETAILS.md):
+**5. New game install only.** If the game's first launch shows a setup window that
+crashes, run:
 
     bash install.sh setup
 
-Then open the game, pick a resolution in the setup window and click OK.
+Then open the game, pick a resolution and click OK. ([Why this is needed](DETAILS.md#new-installs-the-opensetup-patch))
 
 **6. Open CrossOver and play.** Log in and load a map. The error should be gone.
 

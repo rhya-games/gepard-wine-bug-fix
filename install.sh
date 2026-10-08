@@ -14,6 +14,8 @@
 #   bash install.sh keys status  show what is set
 #
 # Add -y to answer "yes" to the questions (quit CrossOver, stop leftovers).
+# Everything except "uninstall" first checks that the game is installed in a CrossOver
+# bottle; --skip-game-check turns that check off.
 #
 # Prebuilt DLL = CrossOver 26.3.0 only. Details: DETAILS.md
 
@@ -33,12 +35,14 @@ if [ -z "$CX_APP" ]; then
 fi
 
 ASSUME_YES=0
+SKIP_GAME_CHECK=0
 CMD=""
 ARG1=""
 n=0
 for arg in "$@"; do
     case "$arg" in
         -y|--yes) ASSUME_YES=1 ;;
+        --skip-game-check) SKIP_GAME_CHECK=1 ;;
         *)
             n=$((n + 1))
             case $n in 1) CMD="$arg" ;; 2) ARG1="$arg" ;; esac ;;
@@ -115,7 +119,27 @@ then quit and reopen Terminal and run this again. (If CrossOver was installed by
 another user, run the command with sudo instead.)"
 }
 
+# The game must be installed in a CrossOver bottle first: a folder that holds both a .grf data
+# archive and an .exe (the game's name differs per server, so we do not look for one name).
+require_game() {
+    [ "$SKIP_GAME_CHECK" = 1 ] && return 0
+    local bottles="$HOME/Library/Application Support/CrossOver/Bottles" g d
+    if [ -d "$bottles" ]; then
+        while IFS= read -r g; do
+            d=$(dirname "$g")
+            if [ -n "$(find "$d" -maxdepth 1 -iname "*.exe" 2>/dev/null | head -1)" ]; then
+                return 0
+            fi
+        done < <(find "$bottles" -ipath "*/drive_c/*" -iname "*.grf" \
+                    -not -ipath "*/windows/*" 2>/dev/null | head -50)
+    fi
+    die "Ragnarok Online does not seem to be installed in a CrossOver bottle yet.
+Install the game in CrossOver first (create a bottle and install it), then run this again.
+(To skip this check anyway, add --skip-game-check.)"
+}
+
 do_install() {
+    require_game
     if [ "$VERSION" != "$SUPPORTED" ]; then
         echo "The ready-made fix is for CrossOver $SUPPORTED only; you have ${VERSION:-an unknown version}."
         echo "Checking whether your version has the bug at all..."
@@ -175,6 +199,7 @@ pick_bottle() {
 }
 
 do_check() {
+    require_game
     local bottles="$HOME/Library/Application Support/CrossOver/Bottles"
     local probe="rawinput_overflow_probe.exe"
     [ -f "$probe" ] || die "$probe is missing. Run this from the downloaded folder."
@@ -238,6 +263,7 @@ screen_area() {   # prints: usable-width usable-height x-origin top-offset
 lua_get() { sed -n "s/^OptionInfoList\[\"$2\"\] *= *\(-\{0,1\}[0-9]*\).*/\1/p" "$1" | head -1; }
 
 do_window() {
+    require_game
     local action="${ARG1:-fit}"
     case "$action" in fit|undo|status) ;; *) die "Usage: bash install.sh window [fit|undo|status]" ;; esac
     local bottles="$HOME/Library/Application Support/CrossOver/Bottles"
@@ -321,6 +347,7 @@ do_keys_status() {
 }
 
 do_keys() {
+    require_game
     local action="${ARG1:-status}"
     case "$action" in on|off|status) ;; *) die "Usage: bash install.sh keys [on|off|status]" ;; esac
     pick_bottle
@@ -374,6 +401,7 @@ pick_one() {
 }
 
 do_setup() {
+    require_game
     local bottles="$HOME/Library/Application Support/CrossOver/Bottles"
     [ -d "$bottles" ] || die "No CrossOver bottles found at $bottles"
     command -v python3 >/dev/null || die "python3 is needed. Run: xcode-select --install"

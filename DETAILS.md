@@ -25,6 +25,15 @@ Build and license information is in [NOTICE](NOTICE).
 | `SKILL.md` | full diagnose, build, deploy, verify and rollback procedure |
 | `SHARE-PROMPT.md` | the same as a self-contained prompt for any Claude |
 
+## The game-installed check
+
+Every `install.sh` command except `uninstall` first looks for the game in the CrossOver
+bottles: a folder under a bottle's `drive_c` (outside `windows`) that holds both a `.grf` data
+archive and an `.exe`. It does not look for one exe name, because that differs per server. If
+none is found it stops with "install the game first". To skip the check (for example to install only the
+DLL fix before the game exists), add `--skip-game-check`, as in
+`bash install.sh --skip-game-check`.
+
 ## Doing it by hand (what install.sh does)
 
 Quit CrossOver, then in Terminal, from the downloaded folder:
@@ -208,6 +217,10 @@ OpenSetup dies instantly under Rosetta 2 on two undocumented x87 encodings (`DC 
 | `0x21E39` | `DC D8` to `D8 D8` | documented encoding of `FCOMP ST(0)` |
 | `0x2C0CD` | `DC D0` to `D8 D0` | documented encoding of `FCOM ST(0)` |
 | `0x43C08` | `mss32.dll` to `mss32.off` | setup does not need audio, so it skips that library |
+
+When to run it: only on a new install, **after** the game is installed in your CrossOver
+bottle, and again if you reinstall the game or make a new bottle, because the patch applies
+to the `setup.exe` file in the bottle, not to the bottle itself.
 
 What it does and does not do:
 - It edits only `setup.exe`. It does not touch the game executable, the game's copy of
