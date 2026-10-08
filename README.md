@@ -12,52 +12,49 @@ a Gepard bug and not a broken install, and this fix does not touch the anti-chea
 
 ## How to install
 
-**Before you start:** install the game in CrossOver first (create a bottle and install
-Ragnarok Online into it). Run everything in this package only after the game is installed.
-The scripts check for this and stop with a message if they cannot find the game.
+**First, install the game in CrossOver.** Do everything below only after that. The scripts
+stop with a message if they cannot find the game.
 
-**Easiest way:** download the ZIP (step 1 below), then in the unzipped folder
-**right-click `Start Here.command` and choose Open**, then click Open again when macOS
-asks (it asks once, because the file came from the internet). A menu appears: type
-`1` and press Return. When it finishes, type `2` to check it worked.
+### Easiest: double-click
 
-If that does not open, or you prefer typing, use the Terminal steps below. You will
-copy and paste a few commands into the **Terminal** app.
+1. [Download the ZIP](https://github.com/rhya-games/gepard-wine-bug-fix/archive/refs/heads/main.zip)
+   and unzip it (Safari does this for you).
+2. Double-click `Start Here.command`. ([macOS blocked it?](DETAILS.md#macos-says-it-cannot-verify-start-herecommand))
+3. Type `1` and press Return to install. Type `2` to check it worked.
 
-**1. [Download the ZIP](https://github.com/rhya-games/gepard-wine-bug-fix/archive/refs/heads/main.zip).**
-It saves to your Downloads folder. Safari unzips it automatically; otherwise
-double-click it. You get a folder called `gepard-wine-bug-fix-main`.
+### Or use Terminal
 
-**2. Open Terminal and go to that folder.** Open Terminal with Spotlight: press
-`Cmd + Space`, type `Terminal`, press Return. Then type `cd ` (with a space after
-it), drag the folder from Finder into the Terminal window, and press Return.
+1. Download and unzip the ZIP above.
+2. Open Terminal (press `Cmd + Space`, type `Terminal`, press Return), then paste this and
+   press Return:
 
-**3. Run the installer.** Copy this line, paste it into Terminal, press Return:
+       cd ~/Downloads/gepard-wine-bug-fix-main
 
-    bash install.sh
+   That assumes the folder is in Downloads. If it is somewhere else, type `cd ` (with a
+   space), drag the folder from Finder into the Terminal window, and press Return.
+3. Run the installer. If CrossOver is open, it asks to quit it; type `y`.
 
-If CrossOver is open it asks whether to quit it; type `y` and press Return. It
-should end with "Installed the fix". If it says STOP, read the message; it tells
-you what to do.
+       bash install.sh
 
-**4. Check that it worked** (optional, takes a few seconds):
+   It should say "Installed the fix". If it says STOP, read the message.
+4. Optional: check it worked. You want "the fix is installed and working".
 
-    bash install.sh check
+       bash install.sh check
 
-You want: `RESULT: the fix is installed and working.`
+### New game install only
 
-**5. New game install only.** If the game's first launch shows a setup window that
-crashes, run:
+If the game's first launch shows a setup window that crashes, run this, then open the
+game, pick a resolution and click OK. ([Why](DETAILS.md#new-installs-the-opensetup-patch))
 
     bash install.sh setup
 
-Then open the game, pick a resolution and click OK. ([Why this is needed](DETAILS.md#new-installs-the-opensetup-patch))
+### Then play
 
-**6. Open CrossOver and play.** Log in and load a map. The error should be gone.
+Open CrossOver, launch the game, log in and load a map. The error should be gone.
 
 ## How to uninstall
 
-Open Terminal, go to this folder the same way as in step 2, and run:
+Open Terminal, go to the folder as in "Or use Terminal", and run:
 
     bash install.sh uninstall
 
@@ -125,7 +122,7 @@ These optional features did not work in testing, and we stopped investigating. T
 - **"No permission to change files inside CrossOver.app":** open System Settings,
   Privacy & Security, App Management, turn on Terminal, then quit and reopen Terminal.
 - **"The program setup.exe has encountered a serious problem":** run
-  `bash install.sh setup` (step 5). It patches the `setup.exe` inside your bottle;
+  `bash install.sh setup` ("New game install only"). It patches the `setup.exe` inside your bottle;
   patching a different copy does nothing.
 - **CrossOver freezes or will not open after you force-quit it:** run
   `bash install.sh`. It finds leftover processes and offers to stop them.
