@@ -5,8 +5,12 @@
 #   bash install.sh check        is the bug present / is the fix working?
 #   bash install.sh uninstall    put the original file back
 #   bash install.sh setup        new installs only: patch the game's setup.exe
-#   bash install.sh keys on      optional: Mac Command=Ctrl, Option=Alt, swipe gestures
-#   bash install.sh keys off     undo the optional Mac key / gesture settings
+# OPTIONAL extras (not needed for the fix):
+#   bash install.sh window       fit the game window to the usable screen area
+#   bash install.sh window undo  put the game's window settings back
+#   bash install.sh window status  show the current and the fitted size
+#   bash install.sh keys on      Mac Option=Alt, Command stays Command, no display capture
+#   bash install.sh keys off     undo the Mac key settings
 #   bash install.sh keys status  show what is set
 #
 # Add -y to answer "yes" to the questions (quit CrossOver, stop leftovers).
@@ -218,10 +222,83 @@ do_check() {
     esac
 }
 
+# OPTIONAL: fit the game's window to the usable screen area (below the menu bar, above
+# the Dock) by editing savedata/OptionInfo.lua. The 28 px title bar was measured on one Mac.
+TITLE_BAR=28
+
+screen_area() {   # prints: usable-width usable-height x-origin top-offset
+    osascript -l JavaScript -e '
+        ObjC.import("AppKit");
+        const s = $.NSScreen.screens.objectAtIndex(0);
+        const f = s.frame, v = s.visibleFrame;
+        console.log([Math.round(v.size.width), Math.round(v.size.height), Math.round(v.origin.x),
+                     Math.round(f.size.height - v.origin.y - v.size.height)].join(" "));' 2>&1
+}
+
+lua_get() { sed -n "s/^OptionInfoList\[\"$2\"\] *= *\(-\{0,1\}[0-9]*\).*/\1/p" "$1" | head -1; }
+
+do_window() {
+    local action="${ARG1:-fit}"
+    case "$action" in fit|undo|status) ;; *) die "Usage: bash install.sh window [fit|undo|status]" ;; esac
+    local bottles="$HOME/Library/Application Support/CrossOver/Bottles"
+    command -v python3 >/dev/null || die "python3 is needed. Run: xcode-select --install"
+
+    local found=() f
+    while IFS= read -r f; do found+=("$f"); done < <(
+        find "$bottles" -ipath "*/drive_c/*/savedata/*" -iname "OptionInfo.lua" 2>/dev/null)
+    [ ${#found[@]} -gt 0 ] || die "Could not find the game's OptionInfo.lua. Start the game once first."
+    pick_one "Which game's settings?" "${found[@]}"
+    local file="$PICKED" backup="$PICKED.before-window-fit.backup"
+    local gamedir; gamedir=$(basename "$(dirname "$(dirname "$file")")")
+
+    local area w h x y
+    area=$(screen_area)
+    case "$area" in *[!0-9\ -]*|"") die "Could not read the screen size from macOS: $area" ;; esac
+    read -r w h x y <<EOF2
+$area
+EOF2
+    local fit_w=$w fit_h=$((h - TITLE_BAR))
+
+    if [ "$action" = "status" ]; then
+        echo "Game settings : $file"
+        echo "Now           : $(lua_get "$file" WIDTH) x $(lua_get "$file" HEIGHT), windowed=$([ "$(lua_get "$file" ISFULLSCREENMODE)" = 0 ] && echo yes || echo no), position $(lua_get "$file" Window_XPos),$(lua_get "$file" Window_YPos)"
+        echo "Would fit to  : $fit_w x $fit_h at $x,$y (usable area $w x $h, title bar $TITLE_BAR)"
+        [ -e "$backup" ] && echo "Backup exists : $backup"
+        return 0
+    fi
+
+    ps -axo command | grep -F "$gamedir" | grep -qv grep \
+        && die "The game is running. Quit it completely first: it rewrites its settings when it closes."
+
+    if [ "$action" = "undo" ]; then
+        [ -e "$backup" ] || die "No backup found ($backup). Nothing to undo."
+        cp -p "$backup" "$file" || die "Could not restore the backup."
+        echo "Restored the previous window settings."
+        return 0
+    fi
+
+    [ -e "$backup" ] || cp -p "$file" "$backup" || die "Could not back up OptionInfo.lua."
+    python3 - "$file" "$fit_w" "$fit_h" "$x" "$y" <<'PYEOF' || die "Could not edit OptionInfo.lua."
+import re, sys
+path, w, h, x, y = sys.argv[1], *map(int, sys.argv[2:6])
+s = open(path, newline="").read()
+for key, val in (("ISFULLSCREENMODE", 0), ("WIDTH", w), ("HEIGHT", h), ("OLD_WIDTH", w),
+                 ("OLD_HEIGHT", h), ("Window_XPos", x), ("Window_YPos", y)):
+    s, n = re.subn(r'(OptionInfoList\["%s"\]\s*=\s*)-?\d+' % key, r'\g<1>%d' % val, s)
+    if n != 1:
+        sys.exit("expected exactly one %s line, found %d" % (key, n))
+open(path, "w", newline="").write(s)
+PYEOF
+    echo "Window fitted: ${fit_w} x ${fit_h} at ${x},${y}, windowed mode."
+    echo "(Usable screen area $w x $h minus a $TITLE_BAR px title bar.)"
+    echo "Backup of your previous settings: $backup"
+    echo "Undo any time with:  bash install.sh window undo"
+}
+
 # Optional Mac keyboard / trackpad settings, stored in the bottle's registry under
 # HKCU\Software\Wine\Mac Driver. Wine reads them when the bottle starts.
 KEYS_KEY='HKCU\Software\Wine\Mac Driver'
-KEYS_ON="LeftCommandIsCtrl=Y RightCommandIsCtrl=Y LeftOptionIsAlt=Y RightOptionIsAlt=Y CaptureDisplaysForFullscreen=N"
+KEYS_ON="LeftCommandIsCtrl=N RightCommandIsCtrl=N LeftOptionIsAlt=Y RightOptionIsAlt=Y CaptureDisplaysForFullscreen=N"
 
 keys_wine() {
     "$CX_APP/Contents/SharedSupport/CrossOver/bin/wine" --bottle "$BOTTLE_NAME" --no-gui "$@" 2>/dev/null
@@ -257,10 +334,12 @@ do_keys() {
                     || die "Could not write the setting $name to the bottle."
             done
             echo "Turned on, for bottle $BOTTLE_NAME:"
-            echo "  - Command keys work as Ctrl (so Cmd+C, Cmd+V and similar work)"
+            echo "  - Both Command keys stay normal Mac Command keys (Cmd+C / Cmd+V, screenshots with"
+            echo "    Cmd+Shift+3/4/5, Cmd+Tab and so on)"
             echo "  - Mac Control key = Left Ctrl (Wine's default, unchanged)"
-            echo "  - Option keys work as Alt"
-            echo "  - Swipe gestures stay available in full screen (Wine does not capture the display)"
+            echo "  - Option keys work as Alt (in-game shortcuts are Option+letter)"
+            echo "  - Wine does not capture the display in full screen (swiping to another Desktop in"
+            echo "    full screen is a known limitation; see README)"
             echo
             echo "Quit CrossOver completely and reopen it, then start the game. Settings load when"
             echo "the bottle starts."
@@ -279,6 +358,21 @@ do_keys() {
     esac
 }
 
+# pick_one "question" item... : sets PICKED (asks if there is more than one item).
+pick_one() {
+    local question="$1"; shift
+    local items=("$@")
+    if [ ${#items[@]} -eq 1 ]; then PICKED="${items[0]}"; return; fi
+    echo "$question"
+    local i=1 f
+    for f in "${items[@]}"; do echo "  $i) $f"; i=$((i + 1)); done
+    printf "Number: "
+    read -r n
+    case "$n" in ''|*[!0-9]*) die "Not a number." ;; esac
+    [ "$n" -ge 1 ] && [ "$n" -le ${#items[@]} ] || die "Not in the list."
+    PICKED="${items[$((n - 1))]}"
+}
+
 do_setup() {
     local bottles="$HOME/Library/Application Support/CrossOver/Bottles"
     [ -d "$bottles" ] || die "No CrossOver bottles found at $bottles"
@@ -291,18 +385,8 @@ do_setup() {
     [ ${#found[@]} -gt 0 ] || die "Could not find the game's setup.exe in any bottle."
 
     local target
-    if [ ${#found[@]} -eq 1 ]; then
-        target="${found[0]}"
-    else
-        echo "Which one is your Ragnarok Online setup.exe?"
-        local i=1
-        for f in "${found[@]}"; do echo "  $i) $f"; i=$((i + 1)); done
-        printf "Number: "
-        read -r n
-        case "$n" in ''|*[!0-9]*) die "Not a number." ;; esac
-        [ "$n" -ge 1 ] && [ "$n" -le ${#found[@]} ] || die "Not in the list."
-        target="${found[$((n - 1))]}"
-    fi
+    pick_one "Which one is your Ragnarok Online setup.exe?" "${found[@]}"
+    target="$PICKED"
 
     echo "Patching: $target"
     python3 patch_opensetup_rosetta.py "$target" || die "Patch failed. See DETAILS.md (OpenSetup)."
@@ -314,6 +398,7 @@ case "${CMD:-install}" in
     uninstall) do_uninstall ;;
     check)     do_check ;;
     keys)      do_keys ;;
+    window)    do_window ;;
     setup)     do_setup ;;
-    *)         echo "Usage: bash install.sh [install|check|uninstall|setup|keys] [-y]"; exit 1 ;;
+    *)         echo "Usage: bash install.sh [install|check|uninstall|setup|window|keys] [-y]"; exit 1 ;;
 esac

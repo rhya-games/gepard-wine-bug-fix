@@ -64,25 +64,60 @@ Open Terminal, go to this folder the same way as in step 2, and run:
 
 This puts the original file back (it asks before quitting CrossOver if it is open).
 
-## Optional: Mac keyboard and swipe settings
+## Optional extras (not needed for the fix)
 
-Not needed for the fix. These make the game feel more natural on a Mac, and you can
-turn them on and off any time:
+Everything above is all you need to get rid of the error. The two extras below are
+**optional**, you can skip them, and each can be undone. Both are also in the
+double-click menu (item 5).
+
+### Optional: fit the game window to your screen
+
+Makes the game window exactly fill the usable screen area (below the menu bar, above the
+Dock), so you do not have to guess a resolution. Quit the game first, then:
+
+    bash install.sh window
+
+It sets windowed mode and the right size and position in the game's settings file, and
+keeps a backup. Undo with `bash install.sh window undo`; see the numbers without changing
+anything with `bash install.sh window status`. It subtracts a 28-pixel title bar, which was
+measured on one Mac, so on another screen it may be a few pixels off.
+
+### Optional: Mac keyboard and swipe settings
+
+These make the game feel more natural on a Mac, and you can turn them on and off any
+time:
 
     bash install.sh keys on
 
-- **Command works as Ctrl** (Cmd+C, Cmd+V and similar).
+- **Option works as Alt.** The game's menu shortcuts are Alt+letter, so on a Mac they are
+  Option+letter.
+- **Both Command keys stay normal Mac Command keys**, so Cmd+C / Cmd+V, the Mac screenshot
+  keys (Cmd+Shift+3/4/5), Cmd+Tab and so on keep working.
 - **Mac Control key stays Left Ctrl** (Wine already does this, so nothing to change).
-- **Option works as Alt** (so you still have an Alt key when Command is Ctrl).
-- **Swipe gestures work in full screen** (Wine will not capture the display).
+- **Wine does not capture the display** in full screen. (This alone does not make swiping
+  work; see "Known limitations" below.)
 
 Then quit CrossOver completely and reopen it; the settings load when the bottle starts.
 To go back to normal: `bash install.sh keys off`. To see what is set:
 `bash install.sh keys status`. The double-click menu has the same options (item 5).
 
-If swiping between full-screen apps still does nothing, check System Settings, Trackpad,
-More Gestures ("Swipe between full-screen apps"), and that the game is in a full-screen
-Space (green button) and not just a borderless window.
+### Known limitations of the optional extras (not fixed)
+
+These optional features did not work in testing, and we stopped investigating. Treat them as open failures:
+
+- **Swiping to a separate Desktop in full screen does not work.** In full screen the game's
+  window takes over every Desktop, and tabbing away with Cmd+Tab and back gives a black
+  screen. Wine cannot open this game in its own full-screen Space, and macOS cannot remember
+  a Desktop for it (details in [DETAILS.md](DETAILS.md)).
+- **The right Command key was still reported as Ctrl in the game** even with the settings
+  written (`RightCommandIsCtrl = N`) and the game restarted. We do not know why. Cmd+C and
+  Cmd+V are expected to work through a hidden Edit menu, which may be what is converting them.
+  The Mac screenshot keys (Cmd+Shift+3/4/5) were not confirmed working in the game.
+- **What is known to work:** the main fix itself, and writing and reading back the settings
+  above. If a Command, Option or screenshot key does something unexpected,
+  `bash install.sh keys off` returns Wine to its defaults.
+- **Best-effort workaround, untested:** play in windowed mode (not full screen) and drag
+  the window to its own Desktop in Mission Control.
 
 ## If something goes wrong
 

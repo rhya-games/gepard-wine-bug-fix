@@ -17,7 +17,7 @@ Build and license information is in [NOTICE](NOTICE).
 |---|---|
 | `NOTICE` | license and build information for the shipped Wine DLL |
 | `Start Here.command` | double-click menu that runs `install.sh` for non-Terminal users |
-| `install.sh` | `install`, `check`, `uninstall`, `setup`; asks before quitting CrossOver or stopping leftover processes (`-y` answers yes) |
+| `install.sh` | `install`, `check`, `uninstall`, `setup`, plus the optional `window` and `keys`; asks before quitting CrossOver or stopping leftover processes (`-y` answers yes) |
 | `wow64win.dll.crossover-26.3.0` | the fixed Wine file, prebuilt, **CrossOver 26.3.0 only** |
 | `patch_opensetup_rosetta.py` | first-run setup.exe fix (used by `bash install.sh setup`) |
 | `rawinput_overflow_probe.c` / `.exe` | detects the bug, and confirms the fix |
@@ -41,27 +41,74 @@ To undo, run the first two lines again in a Terminal window, then:
 The backup is named per CrossOver version, so an old backup is never restored over
 a newer CrossOver. `CX` and `V` only exist in the Terminal window where you typed them.
 
-## Optional Mac keyboard and swipe settings (how it works)
+## Optional: fitting the game window (how it works)
+
+`bash install.sh window` is an optional extra. It edits `savedata/OptionInfo.lua` in the
+game folder (found by searching the CrossOver bottles; it asks if there is more than one):
+
+1. Asks macOS for the primary screen's usable area (`NSScreen.visibleFrame`: the screen
+   minus the menu bar and the Dock) and the menu bar height.
+2. Sets `ISFULLSCREENMODE = 0` (windowed), `WIDTH`/`OLD_WIDTH` to the usable width,
+   `HEIGHT`/`OLD_HEIGHT` to the usable height minus a 28 px title bar,
+   and `Window_XPos`/`Window_YPos` to the top-left of the usable area.
+3. Makes a one-time backup (`OptionInfo.lua.before-window-fit.backup`); `window undo`
+   restores it.
+
+It refuses to run while the game is open, because the game rewrites this file when it exits.
+Example on a 1728 x 1117 (points) MacBook screen with the Dock at the bottom: usable area
+1728 x 984, so the game area is 1728 x 956 at (0, 33), and the measured window frame was
+1728 x 984 at (0, 33). The 28 px title bar was measured on that one setup. Wine only hides
+the menu bar when a window covers the whole screen, so this does not hide it; it just
+removes the guesswork about size.
+
+## Optional: Mac keyboard and swipe settings (how it works)
 
 `bash install.sh keys on` writes these values to `HKCU\Software\Wine\Mac Driver` in
 the chosen bottle (through `wine reg add`), and `keys off` deletes exactly those values:
 
 | value | set to | what Wine's Mac driver does |
 |---|---|---|
-| `LeftCommandIsCtrl` | `Y` | left Command sends Ctrl (default: Alt) |
-| `RightCommandIsCtrl` | `Y` | right Command sends Ctrl (default: Alt) |
+| `LeftCommandIsCtrl` | `N` | left Command stays a Mac Command key (default: Wine sends Alt to the game) |
+| `RightCommandIsCtrl` | `N` | right Command stays a Mac Command key, so Mac shortcuts such as the screenshot keys keep working |
 | `LeftOptionIsAlt` | `Y` | left Option sends Alt (default: sends nothing) |
 | `RightOptionIsAlt` | `Y` | right Option sends Alt (default: sends nothing) |
 | `CaptureDisplaysForFullscreen` | `N` | do not capture the display for full screen (this is Wine's default, written explicitly) |
 
-The Mac Control keys already map to Left/Right Ctrl by default, so no setting is needed.
-Wine itself warns when both Command keys are Ctrl and neither Option is Alt ("There is no
-way to send an Alt key"), which is why the settings are applied together. The value names
+Why Command is left alone: Wine already sends a bare Command key to the game as Alt
+(`kVK_Command` maps to `VK_LMENU` in `keyboard.c`), and the game's menu shortcuts are
+Alt+letter, so Option is made Alt as well. Wine and CrossOver also add a hidden Edit menu
+(`EditMenu` option) so Cmd+C and Cmd+V still paste as Ctrl+C / Ctrl+V. Mapping Command to
+Ctrl (`LeftCommandIsCtrl` / `RightCommandIsCtrl`) only changes how an already-delivered
+Command press is translated and gets in the way of Mac shortcuts, so this bundle sets
+those to `N`. The Mac Control key already maps to Left/Right Ctrl by default.
+
+The value names
 were checked against Wine's `dlls/winemac.drv/macdrv_main.c` and the default key table in
-`keyboard.c`; swipe gestures depend on macOS (display capture off, a full-screen Space,
-and the Trackpad gesture enabled in System Settings). The driver reads the values when
+`keyboard.c`; swipe gestures depend on macOS. Wine can only open a window in a native full-screen Space
+when it is titled and resizable (`adjustFullScreenBehavior:` in `cocoa_window.m`), which the
+game window and Wine virtual desktops (`WS_POPUP`) are not, and under CrossOver each game
+run is a separate temporary macOS app (`.../winetemp-*/uaRO.exe`, no bundle id), so the
+Dock "Assign To" setting cannot persist. See "Known failures" below. The driver reads the values when
 the bottle starts, so CrossOver must be restarted. `keys off` restores Wine's defaults,
 not any custom values you had set for these names beforehand.
+
+## Known failures: full-screen swipe and the right Command key
+
+Recorded so nobody repeats the work. Not fixed.
+
+- **Full screen takes over all Desktops.** In full screen the game window is a floating
+  window (CoreGraphics window layer 3) owned by its own temporary macOS app
+  (`.../winetemp-*/uaRO.exe`); in windowed mode it was a normal layer-0 window. Wine raises
+  fullscreen and topmost windows to higher levels (`minimumLevelForActive:` in
+  `cocoa_window.m`), and native full-screen Spaces are only offered to titled, resizable
+  windows (`adjustFullScreenBehavior:`). No registry value in Wine's Mac driver changes
+  this; CrossOver's `winemac.so` has the same option set as upstream plus `EditMenu`.
+  Cmd+Tab back into the full-screen game gives a black screen (exclusive-fullscreen behaviour).
+- **Right Command still behaves as Ctrl.** With `LeftCommandIsCtrl=N` and `RightCommandIsCtrl=N`
+  confirmed in the bottle's `user.reg` and the game started afterwards, the game still saw
+  Ctrl from the right Command key. Unresolved. A likely cause is the hidden Edit menu
+  (`EditMenu`, on by default) turning Command+key presses into Ctrl+key; testing with
+  `EditMenu=N` was not done. The Mac screenshot keys were not confirmed working in the game.
 
 ## Other CrossOver versions, or other Wine runtimes
 
