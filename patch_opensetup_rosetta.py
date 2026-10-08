@@ -19,7 +19,10 @@ the original SHA-256 recorded in ORIGINAL_SHA256.  The script refuses to touch
 anything else -- see DETAILS.md and SKILL.md for how to locate the equivalent
 bytes in a different build.
 
-Usage:  patch_opensetup_rosetta.py /path/to/setup.exe
+Usage:  patch_opensetup_rosetta.py [--check] /path/to/setup.exe
+
+--check only reports and never writes: exit 0 = known build that still needs the patch,
+1 = already patched, 2 = not a build this script knows.
 """
 
 from __future__ import annotations
@@ -52,13 +55,27 @@ def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def main() -> int:
-    if len(sys.argv) != 2:
-        raise SystemExit(f"usage: {sys.argv[0]} /path/to/setup.exe")
+def needs_patch(data: bytes) -> int:
+    """0 = known build that needs the patch, 1 = already patched, 2 = unknown build."""
+    if all(data[o : o + len(r)] == r for o, _, r, _ in PATCHES):
+        return 1
+    if sha256(data) in KNOWN_INPUT_SHA256:
+        return 0
+    return 2
 
-    setup = Path(sys.argv[1])
+
+def main() -> int:
+    args = sys.argv[1:]
+    check_only = "--check" in args
+    args = [a for a in args if a != "--check"]
+    if len(args) != 1:
+        raise SystemExit(f"usage: {sys.argv[0]} [--check] /path/to/setup.exe")
+
+    setup = Path(args[0])
     data = setup.read_bytes()
     current = sha256(data)
+    if check_only:
+        return needs_patch(data)
 
     for offset, original, replacement, _ in PATCHES:
         actual = data[offset : offset + len(original)]

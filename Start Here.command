@@ -39,10 +39,10 @@ while true; do
     echo "----------------------"
     echo
     echo "  1) Install the fix"
-    echo "  2) Check that it is working"
-    echo "  3) New game install only: fix the game's setup window"
+    echo "  2) Install the fix WITH the optional extras (window size, Mac keyboard)"
+    echo "  3) Check that it is working"
     echo "  4) Uninstall the fix"
-    echo "  5) Optional extras (window size, Mac keyboard)"
+    echo "  5) Optional extras, one at a time"
     echo "  6) Quit"
     echo
     printf "Type a number and press Return: "
@@ -50,8 +50,8 @@ while true; do
     echo
     case "$choice" in
         1) bash install.sh ;;
-        2) bash install.sh check ;;
-        3) bash install.sh setup ;;
+        2) bash install.sh extras ;;
+        3) bash install.sh check ;;
         4) bash install.sh uninstall ;;
         5) extras_menu ; continue ;;
         6|q|Q|"") exit 0 ;;

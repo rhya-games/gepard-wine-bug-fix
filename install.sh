@@ -6,6 +6,8 @@
 #   bash install.sh uninstall    put the original file back
 #   bash install.sh setup        new installs only: patch the game's setup.exe
 # OPTIONAL extras (not needed for the fix):
+#   bash install.sh extras       install the fix AND add both extras (window fit + Mac keys)
+#   bash install.sh extras undo  remove both extras (the fix stays installed)
 #   bash install.sh window       fit the game window to the usable screen area
 #   bash install.sh window undo  put the game's window settings back
 #   bash install.sh window status  show the current and the fitted size
@@ -13,7 +15,8 @@
 #   bash install.sh keys off     undo the Mac key settings
 #   bash install.sh keys status  show what is set
 #
-# Add -y to answer "yes" to the questions (quit CrossOver, stop leftovers).
+# Add -y to answer "yes" to the questions (quit CrossOver, fix setup.exe). Leftover processes
+# are always stopped, without asking.
 # Everything except "uninstall" first checks that the game is installed in a CrossOver
 # bottle; --skip-game-check turns that check off.
 #
@@ -78,7 +81,7 @@ stale_pids() {
     ps -axo pid=,command= | awk '$2 ~ /^C:[\\]/ {print $1}'
 }
 
-# Make sure CrossOver is closed and nothing is left running, asking before acting.
+# Make sure CrossOver is closed (asks first) and that no leftover processes remain (always cleared).
 ensure_crossover_closed() {
     if crossover_running; then
         if ask "CrossOver is open. Quit it now? (save anything you need first)"; then
@@ -92,22 +95,19 @@ or use Apple menu > Force Quit, then run this again."
         fi
     fi
 
+    # CrossOver is closed now, so anything still running from a bottle is a leftover that can
+    # make the next launch hang. Always stop it (no question asked).
     local pids
     pids=$(stale_pids | tr '\n' ' ')
     if [ -n "${pids// /}" ]; then
-        echo "Leftover Windows processes from CrossOver are still running (PIDs: $pids)."
-        echo "These can make CrossOver hang the next time it opens."
-        if ask "Stop them?"; then
-            # shellcheck disable=SC2086
-            kill $pids 2>/dev/null
-            sleep 2
-            pids=$(stale_pids | tr '\n' ' ')
-            # shellcheck disable=SC2086
-            [ -n "${pids// /}" ] && kill -9 $pids 2>/dev/null && sleep 1
-            echo "Stopped."
-        else
-            echo "Leaving them running. If CrossOver hangs later, restart your Mac."
-        fi
+        echo "Stopping leftover Windows processes from CrossOver (PIDs: $pids)..."
+        # shellcheck disable=SC2086
+        kill $pids 2>/dev/null
+        sleep 2
+        pids=$(stale_pids | tr '\n' ' ')
+        # shellcheck disable=SC2086
+        [ -n "${pids// /}" ] && kill -9 $pids 2>/dev/null && sleep 1
+        echo "Done."
     fi
 }
 
@@ -119,6 +119,8 @@ then quit and reopen Terminal and run this again. (If CrossOver was installed by
 another user, run the command with sudo instead.)"
 }
 
+GAME_BOTTLE=""   # set by require_game: the bottle that holds the game
+
 # The game must be installed in a CrossOver bottle first: a folder that holds both a .grf data
 # archive and an .exe (the game's name differs per server, so we do not look for one name).
 require_game() {
@@ -128,6 +130,7 @@ require_game() {
         while IFS= read -r g; do
             d=$(dirname "$g")
             if [ -n "$(find "$d" -maxdepth 1 -iname "*.exe" 2>/dev/null | head -1)" ]; then
+                GAME_BOTTLE="${g#"$bottles"/}"; GAME_BOTTLE="${GAME_BOTTLE%%/*}"
                 return 0
             fi
         done < <(find "$bottles" -ipath "*/drive_c/*" -iname "*.grf" \
@@ -136,6 +139,30 @@ require_game() {
     die "Ragnarok Online does not seem to be installed in a CrossOver bottle yet.
 Install the game in CrossOver first (create a bottle and install it), then run this again.
 (To skip this check anyway, add --skip-game-check.)"
+}
+
+# If the game's setup.exe is the known build that crashes on Macs, offer to fix it.
+maybe_patch_setup() {
+    command -v python3 >/dev/null || return 0
+    local bottles="$HOME/Library/Application Support/CrossOver/Bottles" f
+    local todo=()
+    while IFS= read -r f; do
+        python3 patch_opensetup_rosetta.py --check "$f" >/dev/null 2>&1 && todo+=("$f")
+    done < <(find "$bottles" -ipath "*/drive_c/*" -iname "setup.exe" -not -ipath "*/windows/*" \
+                 -not -ipath "*/Program Files*/Common Files/*" 2>/dev/null)
+    [ ${#todo[@]} -gt 0 ] || return 0
+
+    echo
+    echo "The game's setup window (setup.exe) crashes on Macs unless it is fixed:"
+    for f in "${todo[@]}"; do
+        echo "  $f"
+        if ask "Fix it now?"; then
+            python3 patch_opensetup_rosetta.py "$f" >/dev/null && echo "  Fixed (backup kept next to it)." \
+                || echo "  Could not fix it. Run: bash install.sh setup"
+        else
+            echo "  Skipped. You can fix it later with: bash install.sh setup"
+        fi
+    done
 }
 
 do_install() {
@@ -150,20 +177,29 @@ do_install() {
     [ -f "$DLL_SRC" ] || die "$DLL_SRC is missing. Run this from the downloaded folder."
     [ "$(shasum -a 256 "$DLL_SRC" | cut -d' ' -f1)" = "$DLL_SHA256" ] \
         || die "$DLL_SRC does not match the expected checksum. Re-download it."
+
     if cmp -s "$DLL_SRC" "$DLL"; then
-        echo "Already installed. Nothing to do."
-        return 0
+        echo "The Wine fix is already installed."
+    else
+        check_writable
+        ensure_crossover_closed
+
+        [ -e "$BACKUP" ] || cp -p "$DLL" "$BACKUP" || die "Could not back up the original file (permission?)."
+        cp "$DLL_SRC" "$DLL" || die "Could not write to CrossOver.app. See the App Management note above."
+        cmp -s "$DLL_SRC" "$DLL" || die "Copy did not verify."
+
+        echo "Installed the fix for CrossOver $VERSION."
+        echo "Backup of the original: $BACKUP"
     fi
 
-    check_writable
-    ensure_crossover_closed
+    maybe_patch_setup
 
-    [ -e "$BACKUP" ] || cp -p "$DLL" "$BACKUP" || die "Could not back up the original file (permission?)."
-    cp "$DLL_SRC" "$DLL" || die "Could not write to CrossOver.app. See the App Management note above."
-    cmp -s "$DLL_SRC" "$DLL" || die "Copy did not verify."
+    echo
+    echo "Checking that the fix works (a few seconds)..."
+    ( do_check ) || echo "(The check could not run. Try it later with: bash install.sh check)"
 
-    echo "Installed the fix for CrossOver $VERSION."
-    echo "Backup of the original: $BACKUP"
+    [ "${INSTALL_QUIET:-0}" = 1 ] && return 0
+    echo
     echo "Now open CrossOver and start the game."
     echo "A CrossOver update will remove the fix; run this script again afterwards."
 }
@@ -186,7 +222,9 @@ pick_bottle() {
     [ ${#names[@]} -gt 0 ] || die "No CrossOver bottles found. Create one in CrossOver first."
 
     BOTTLE_NAME="${names[0]}"
-    if [ ${#names[@]} -gt 1 ]; then
+    if [ -n "$GAME_BOTTLE" ] && [ -d "$bottles/$GAME_BOTTLE" ]; then
+        BOTTLE_NAME="$GAME_BOTTLE"      # the bottle that holds the game; no need to ask
+    elif [ ${#names[@]} -gt 1 ]; then
         echo "Which bottle?"
         local i=1
         for d in "${names[@]}"; do echo "  $i) $d"; i=$((i + 1)); done
@@ -293,7 +331,8 @@ EOF2
         return 0
     fi
 
-    ps -axo command | grep -F "$gamedir" | grep -qv grep \
+    # The game's command line holds its Windows path, e.g. ...\Programs\<game folder>\game.exe
+    ps -axo command | grep -F -- "\\$gamedir\\" | grep -qv grep \
         && die "The game is running. Quit it completely first: it rewrites its settings when it closes."
 
     if [ "$action" = "undo" ]; then
@@ -365,8 +404,8 @@ do_keys() {
             echo "    Cmd+Shift+3/4/5, Cmd+Tab and so on)"
             echo "  - Mac Control key = Left Ctrl (Wine's default, unchanged)"
             echo "  - Option keys work as Alt (in-game shortcuts are Option+letter)"
-            echo "  - Wine does not capture the display in full screen (swiping to another Desktop in"
-            echo "    full screen is a known limitation; see README)"
+            echo "  - Wine does not capture the display in full screen (Cmd+Tab still does not work"
+            echo "    in full screen; use windowed mode, see README)"
             echo
             echo "Quit CrossOver completely and reopen it, then start the game. Settings load when"
             echo "the bottle starts."
@@ -400,6 +439,24 @@ pick_one() {
     PICKED="${items[$((n - 1))]}"
 }
 
+# OPTIONAL extras. `extras` installs the fix AND adds both extras; `extras undo` removes the
+# extras only. A problem with one extra does not stop the other.
+do_extras() {
+    require_game
+    if [ "${ARG1:-}" = "undo" ]; then
+        echo "== Mac keyboard settings: off =="; ARG1=off; ( do_keys ) || echo "(skipped)"
+        echo; echo "== Game window: undo =="; ARG1=undo; ( do_window ) || echo "(skipped)"
+        return 0
+    fi
+    [ -z "${ARG1:-}" ] || die "Usage: bash install.sh extras [undo]"
+    echo "== The fix =="; INSTALL_QUIET=1 do_install
+    echo; echo "== Mac keyboard settings: on =="; ARG1=on; ( do_keys ) || echo "(skipped)"
+    echo; echo "== Game window: fit =="; ARG1=fit; ( do_window ) || echo "(skipped)"
+    echo
+    echo "Now open CrossOver (quit it completely first if it was open) and start the game."
+    echo "A CrossOver update will remove the fix; run this script again afterwards."
+}
+
 do_setup() {
     require_game
     local bottles="$HOME/Library/Application Support/CrossOver/Bottles"
@@ -425,8 +482,9 @@ case "${CMD:-install}" in
     install)   do_install ;;
     uninstall) do_uninstall ;;
     check)     do_check ;;
+    extras)    do_extras ;;
     keys)      do_keys ;;
     window)    do_window ;;
     setup)     do_setup ;;
-    *)         echo "Usage: bash install.sh [install|check|uninstall|setup|window|keys] [-y]"; exit 1 ;;
+    *)         echo "Usage: bash install.sh [install|check|uninstall|setup|extras|window|keys] [-y]"; exit 1 ;;
 esac

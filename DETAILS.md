@@ -17,7 +17,7 @@ Build and license information is in [NOTICE](NOTICE).
 |---|---|
 | `NOTICE` | license and build information for the shipped Wine DLL |
 | `Start Here.command` | double-click menu that runs `install.sh` for non-Terminal users |
-| `install.sh` | `install`, `check`, `uninstall`, `setup`, plus the optional `window` and `keys`; asks before quitting CrossOver or stopping leftover processes (`-y` answers yes) |
+| `install.sh` | `install`, `check`, `uninstall`, `setup`, plus the optional `extras` (install the fix and add both extras), `window` and `keys`; asks before quitting CrossOver and always stops leftover bottle processes (`-y` answers yes) |
 | `wow64win.dll.crossover-26.3.0` | the fixed Wine file, prebuilt, **CrossOver 26.3.0 only** |
 | `patch_opensetup_rosetta.py` | first-run setup.exe fix (used by `bash install.sh setup`) |
 | `rawinput_overflow_probe.c` / `.exe` | detects the bug, and confirms the fix |
@@ -83,7 +83,7 @@ Example on a 1728 x 1117 (points) MacBook screen with the Dock at the bottom: us
 the menu bar when a window covers the whole screen, so this does not hide it; it just
 removes the guesswork about size.
 
-## Optional: Mac keyboard and swipe settings (how it works)
+## Optional: Mac keyboard settings (how it works)
 
 `bash install.sh keys on` writes these values to `HKCU\Software\Wine\Mac Driver` in
 the chosen bottle (through `wine reg add`), and `keys off` deletes exactly those values:
@@ -104,33 +104,31 @@ Ctrl (`LeftCommandIsCtrl` / `RightCommandIsCtrl`) only changes how an already-de
 Command press is translated and gets in the way of Mac shortcuts, so this bundle sets
 those to `N`. The Mac Control key already maps to Left/Right Ctrl by default.
 
-The value names
-were checked against Wine's `dlls/winemac.drv/macdrv_main.c` and the default key table in
-`keyboard.c`; swipe gestures depend on macOS. Wine can only open a window in a native full-screen Space
-when it is titled and resizable (`adjustFullScreenBehavior:` in `cocoa_window.m`), which the
-game window and Wine virtual desktops (`WS_POPUP`) are not, and under CrossOver each game
-run is a separate temporary macOS app (`.../winetemp-*/uaRO.exe`, no bundle id), so the
-Dock "Assign To" setting cannot persist. See "Known failures" below. The driver reads the values when
-the bottle starts, so CrossOver must be restarted. `keys off` restores Wine's defaults,
+The value names were checked against Wine's `dlls/winemac.drv/macdrv_main.c` and the
+default key table in `keyboard.c`. The driver reads the values when the bottle starts, so
+CrossOver must be restarted. For full screen, see "Known failure" below. `keys off` restores Wine's defaults,
 not any custom values you had set for these names beforehand.
 
-## Known failures: full-screen swipe and the right Command key
+## Known failure: Cmd+Tab in full screen
 
 Recorded so nobody repeats the work. Not fixed.
 
-- **Full screen takes over all Desktops.** In full screen the game window is a floating
+- **Cmd+Tab (Alt+Tab) does not work with full screen.** Tabbing away from the game and back
+  gives a black screen, and the full-screen window takes over all Desktops, so you cannot
+  swipe to another one either. In full screen the game window is a floating
   window (CoreGraphics window layer 3) owned by its own temporary macOS app
   (`.../winetemp-*/uaRO.exe`); in windowed mode it was a normal layer-0 window. Wine raises
   fullscreen and topmost windows to higher levels (`minimumLevelForActive:` in
   `cocoa_window.m`), and native full-screen Spaces are only offered to titled, resizable
   windows (`adjustFullScreenBehavior:`). No registry value in Wine's Mac driver changes
   this; CrossOver's `winemac.so` has the same option set as upstream plus `EditMenu`.
-  Cmd+Tab back into the full-screen game gives a black screen (exclusive-fullscreen behaviour).
-- **Right Command still behaves as Ctrl.** With `LeftCommandIsCtrl=N` and `RightCommandIsCtrl=N`
-  confirmed in the bottle's `user.reg` and the game started afterwards, the game still saw
-  Ctrl from the right Command key. Unresolved. A likely cause is the hidden Edit menu
-  (`EditMenu`, on by default) turning Command+key presses into Ctrl+key; testing with
-  `EditMenu=N` was not done. The Mac screenshot keys were not confirmed working in the game.
+  Under CrossOver each game run is also a separate temporary macOS app with no bundle id,
+  so the Dock "Assign To" setting cannot persist. The black screen matches exclusive
+  full-screen behaviour.
+- **Keys:** if a Command, Option or screenshot key does something unexpected,
+  `bash install.sh keys off` returns Wine to its defaults.
+- **Untested workaround:** play in windowed mode (not full screen) and drag the window to its
+  own Desktop in Mission Control.
 
 ## Other CrossOver versions, or other Wine runtimes
 
@@ -231,9 +229,11 @@ OpenSetup dies instantly under Rosetta 2 on two undocumented x87 encodings (`DC 
 | `0x2C0CD` | `DC D0` to `D8 D0` | documented encoding of `FCOM ST(0)` |
 | `0x43C08` | `mss32.dll` to `mss32.off` | setup does not need audio, so it skips that library |
 
-When to run it: only on a new install, **after** the game is installed in your CrossOver
-bottle, and again if you reinstall the game or make a new bottle, because the patch applies
-to the `setup.exe` file in the bottle, not to the bottle itself.
+`bash install.sh` offers this automatically, but only when it finds the known unpatched
+`setup.exe` in a bottle (it checks with `patch_opensetup_rosetta.py --check`), so it is
+skipped on installs that do not need it. Run `bash install.sh setup` by hand if you skipped
+it, and again if you reinstall the game or make a new bottle, because the patch applies to
+the `setup.exe` file in the bottle, not to the bottle itself.
 
 What it does and does not do:
 - It edits only `setup.exe`. It does not touch the game executable, the game's copy of
@@ -258,5 +258,3 @@ reproduced.
 
 Nothing here touches, patches or bypasses the anti-cheat itself — the fix is
 entirely on the Wine side.
-
-Worth reporting upstream at https://bugs.winehq.org/ so it reaches every wrapper.
