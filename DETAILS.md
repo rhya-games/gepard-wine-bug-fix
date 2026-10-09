@@ -102,6 +102,15 @@ the bottle's user folder instead. Entries whose program does not exist yet are s
 re-running it refreshes them (for example after installing AzzyAI). `launchers remove` deletes
 just these three shortcuts and syncs again. Reopen CrossOver if it was open.
 
+Icons: the game's own `uaRO.exe` icon is only 32 pixels (blurry when scaled up) and CrossOver
+left the patcher's launcher app with its generic icon. So `launchers` also builds a sharper icon
+from the game's `icnbig.ico` (48 pixels, upscaled with `sips`, packed with `iconutil`), adds
+48 to 512 pixel versions to the bottle's icon cache (`windata/cxmenu/icons/hicolor`) for the
+Game and Patcher entries, and replaces `CrossOverHelper.icns` inside those two apps in
+`~/Applications/CrossOver/<game folder>/`. The source is only 48 pixels, so it is smooth, not
+detailed. If CrossOver rebuilds those apps and the old icon returns, run `launchers` again.
+
+
 ## Optional: AzzyAI (how it works)
 
 `bash install.sh azzyai` (also run by `extras`, which asks first) installs the latest release

@@ -481,6 +481,51 @@ rename_patcher_shortcuts() {   # $1 = bottle dir, $2 = game folder name, $3 = fr
     done < <(find "$1/drive_c/users" \( -path "*/Start Menu/Programs/$2/$3.lnk" -o -path "*/Desktop/$3.lnk" \) 2>/dev/null)
 }
 
+# Builds sharp-enough icons for the Game and Patcher launchers from the game's own icnbig.ico
+# (48 px; the Game's own exe icon is only 32 px, and the Patcher's launcher app is left with
+# CrossOver's generic icon). Fills CrossOver's icon cache with larger sizes and replaces the
+# icon of the two launcher apps in ~/Applications/CrossOver. Silently does nothing if the game
+# has no icnbig.ico. Re-run `launchers` if CrossOver ever rebuilds those apps.
+fix_launcher_icons() {   # $1 = bottle dir, $2 = game folder name, $3 = game dir, $4 = bottle name
+    local ico="$3/icnbig.ico"
+    [ -f "$ico" ] || return 0
+    local tmp; tmp=$(mktemp -d) || return 0
+    local base="$tmp/base.png" set="$tmp/icon.iconset" n
+    sips -s format png "$ico" --out "$base" >/dev/null 2>&1 || { rm -rf "$tmp"; return 0; }
+    mkdir -p "$set"
+    for n in 16 32 48 64 128 256 512 1024; do
+        sips -z $n $n "$base" --out "$tmp/s$n.png" >/dev/null 2>&1
+    done
+    cp "$tmp/s16.png" "$set/icon_16x16.png";      cp "$tmp/s32.png" "$set/icon_16x16@2x.png"
+    cp "$tmp/s32.png" "$set/icon_32x32.png";      cp "$tmp/s64.png" "$set/icon_32x32@2x.png"
+    cp "$tmp/s128.png" "$set/icon_128x128.png";   cp "$tmp/s256.png" "$set/icon_128x128@2x.png"
+    cp "$tmp/s256.png" "$set/icon_256x256.png";   cp "$tmp/s512.png" "$set/icon_256x256@2x.png"
+    cp "$tmp/s512.png" "$set/icon_512x512.png";   cp "$tmp/s1024.png" "$set/icon_512x512@2x.png"
+    iconutil -c icns -o "$tmp/icon.icns" "$set" >/dev/null 2>&1 || { rm -rf "$tmp"; return 0; }
+
+    # CrossOver's icon cache: add 48 px and larger sizes for the Game and Patcher icons.
+    local conf="$1/cxmenu.conf" name id
+    for name in "UaRO Game" "UaRO Patcher"; do
+        id=$(awk -v n="/$name.lnk]" 'index($0, n) {f=1; next} /^\[/ {f=0} f && /^"Icon"/ {gsub(/.*= *"|"/, ""); print; exit}' "$conf")
+        [ -n "$id" ] || continue
+        for n in 48 64 128 256 512; do
+            mkdir -p "$1/windata/cxmenu/icons/hicolor/${n}x${n}/apps"
+            cp "$tmp/s$n.png" "$1/windata/cxmenu/icons/hicolor/${n}x${n}/apps/$id.png" 2>/dev/null \
+                || sips -z $n $n "$base" --out "$1/windata/cxmenu/icons/hicolor/${n}x${n}/apps/$id.png" >/dev/null 2>&1
+        done
+    done
+    "$CX_APP/Contents/SharedSupport/CrossOver/bin/cxmenu" --install --bottle "$4" >/dev/null 2>&1
+
+    # The launcher apps CrossOver made for them.
+    local app
+    for name in "UaRO Game" "UaRO Patcher"; do
+        app=$(find "$HOME/Applications/CrossOver" -maxdepth 3 -name "$name.app" -path "*/$2/*" 2>/dev/null | head -1)
+        [ -n "$app" ] && [ -d "$app/Contents/Resources" ] || continue
+        cp "$tmp/icon.icns" "$app/Contents/Resources/CrossOverHelper.icns" && touch "$app"
+    done
+    rm -rf "$tmp"
+}
+
 do_launchers() {
     require_game
     local action="${ARG1:-add}"
@@ -539,6 +584,7 @@ EOF2
     [ $rc -eq 0 ] || die "Could not create the launchers (Wine's script engine failed)."
     rename_patcher_shortcuts "$bdir" "$gamename" "$gamename" "UaRO Patcher"
     "$cxmenu" --sync --bottle "$bottle" --mode install >/dev/null 2>&1
+    fix_launcher_icons "$bdir" "$gamename" "$GAME_DIR" "$bottle"
 
     # (${arr[@]+...} keeps an empty list from tripping `set -u` on the macOS bash 3.2)
     [ "$RENAMED" -gt 0 ] && echo "Renamed the patcher's shortcut to: UaRO Patcher"
