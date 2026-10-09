@@ -287,9 +287,3 @@ Option B: restore the `wow64win.dll` symlink in the overlay, or revert the
   timing, or `ProcessDebugObjectHandle`/`ThreadIsTerminated` contracts. Those
   were investigated at length for this exact symptom and are all irrelevant —
   the failure reproduces identically on a completely stock runtime.
-
-## Upstream
-
-This is a genuine upstream Wine bug. Encourage reporting it at
-https://bugs.winehq.org/ with the patch, so the fix reaches everyone instead of
-being re-applied by hand after each CrossOver update.
