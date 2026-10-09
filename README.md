@@ -8,7 +8,8 @@ If Ragnarok Online shows this right after a map loads:
 it is a bug in Wine (the part of CrossOver that runs Windows programs). It is not
 a Gepard bug and not a broken install, and this fix does not touch the anti-cheat.
 
-**Works with CrossOver 26.3.0.** For other versions, see [DETAILS.md](DETAILS.md).
+**Ready-made for CrossOver 26.3.0.** On another version the installer tells you whether you need
+the fix and how to build one ([details](DETAILS.md#other-crossover-versions-or-other-wine-runtimes)).
 
 ## How to install
 
@@ -50,6 +51,11 @@ stop with a message if they cannot find the game.
 ### Then play
 
 Open CrossOver, launch the game, log in and load a map. The error should be gone.
+
+To start the game without worrying about leftover processes from an earlier crash, use menu
+item 3 in `Start Here.command`, or:
+
+    bash install.sh play
 
 ## How to uninstall
 
@@ -119,9 +125,10 @@ back gives a black screen. Use windowed mode.
 
 ## After a CrossOver update
 
-An update removes the fix. Run `bash install.sh` again. If it says the version is not
-supported, run `bash install.sh check`: it tells you whether your version still has
-the bug. If it does, see [DETAILS.md](DETAILS.md) for other versions.
+An update removes the fix. Run `bash install.sh` again. If it says there is no ready-made
+fix for your new version, it first tests whether that version still has the bug. If it does,
+build one with `bash build-dll.sh <your CrossOver version>` (needs `brew install mingw-w64 bison` once) and run `bash install.sh` again
+([details](DETAILS.md#other-crossover-versions-or-other-wine-runtimes)).
 
 ## More
 

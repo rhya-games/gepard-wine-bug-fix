@@ -5,6 +5,7 @@
 #   bash install.sh check        is the bug present / is the fix working?
 #   bash install.sh uninstall    put the original file back
 #   bash install.sh setup        new installs only: patch the game's setup.exe
+#   bash install.sh play         clear leftover processes, then start the game
 # OPTIONAL extras (not needed for the fix):
 #   bash install.sh extras       install the fix AND add the extras (window fit, Mac keys, AzzyAI, launchers)
 #   bash install.sh extras undo  remove both extras (the fix stays installed)
@@ -24,14 +25,10 @@
 # Everything except "uninstall" first checks that the game is installed in a CrossOver
 # bottle; --skip-game-check turns that check off.
 #
-# Prebuilt DLL = CrossOver 26.3.0 only. Details: DETAILS.md
+# Ready-made DLLs: wow64win.dll.crossover-<version> files listed in SHA256SUMS. Details: DETAILS.md
 
 set -u
 cd "$(dirname "$0")" || exit 1
-
-SUPPORTED="26.3.0"
-DLL_SRC="wow64win.dll.crossover-26.3.0"
-DLL_SHA256="c2cc2d3a25b9b74bd2269b209debfbaaaafcf28c40def18ada05993aab80d701"
 
 # CX_APP can be overridden for testing.
 CX_APP="${CX_APP:-}"
@@ -73,6 +70,10 @@ DLL_DIR="$CX_APP/Contents/SharedSupport/CrossOver/lib/wine/x86_64-windows"
 DLL="$DLL_DIR/wow64win.dll"
 # CFBundleShortVersionString is just "26.3"; CFBundleVersion is "26.3.0.39832".
 VERSION=$(defaults read "$CX_APP/Contents/Info.plist" CFBundleVersion 2>/dev/null | cut -d. -f1-3)
+DLL_SRC="wow64win.dll.crossover-$VERSION"          # the ready-made fix for this CrossOver version
+DLL_SHA256=$(awk -v f="$DLL_SRC" '$2 == f {print $1}' SHA256SUMS 2>/dev/null)
+# True if this checkout has a ready-made fix for the installed CrossOver version.
+prebuilt_available() { [ -n "$VERSION" ] && [ -n "$DLL_SHA256" ] && [ -f "$DLL_SRC" ]; }
 BACKUP="$DLL.orig-$VERSION"
 
 [ -f "$DLL" ] || die "Could not find $DLL"
@@ -99,8 +100,12 @@ or use Apple menu > Force Quit, then run this again."
         fi
     fi
 
-    # CrossOver is closed now, so anything still running from a bottle is a leftover that can
-    # make the next launch hang. Always stop it (no question asked).
+    kill_leftovers
+}
+
+# Anything still running from a bottle once CrossOver is closed is a leftover that can make the
+# next launch hang. Always stop it (no question asked).
+kill_leftovers() {
     local pids
     pids=$(stale_pids | tr '\n' ' ')
     if [ -n "${pids// /}" ]; then
@@ -171,14 +176,13 @@ maybe_patch_setup() {
 
 do_install() {
     require_game
-    if [ "$VERSION" != "$SUPPORTED" ]; then
-        echo "The ready-made fix is for CrossOver $SUPPORTED only; you have ${VERSION:-an unknown version}."
+    if ! prebuilt_available; then
+        echo "There is no ready-made fix for CrossOver ${VERSION:-(unknown version)} in this download yet."
         echo "Checking whether your version has the bug at all..."
         echo
         do_check
         return
     fi
-    [ -f "$DLL_SRC" ] || die "$DLL_SRC is missing. Run this from the downloaded folder."
     [ "$(shasum -a 256 "$DLL_SRC" | cut -d' ' -f1)" = "$DLL_SHA256" ] \
         || die "$DLL_SRC does not match the expected checksum. Re-download it."
 
@@ -240,6 +244,29 @@ pick_bottle() {
     fi
 }
 
+# Looks for graphics settings known to cause the same error: the protection hooks Direct3D 9,
+# and DXVK (or similar layers) are reported to trigger "3::110::12" even with the Wine fix.
+# Prints a note and returns 1 if it finds one in the bottle's settings or registry.
+check_graphics() {   # $1 = bottle dir
+    local hits="" conf="$1/cxbottle.conf" reg="$1/user.reg" line
+    if [ -f "$conf" ]; then
+        line=$(awk '/^\[EnvironmentVariables\]/ {f=1; next} /^\[/ {f=0} f' "$conf" \
+               | grep -iE 'dxvk|d3dmetal|dxmt|CX_GRAPHICS_BACKEND' | head -1)
+        [ -n "$line" ] && hits="the bottle setting $line"
+    fi
+    if [ -z "$hits" ] && [ -f "$reg" ]; then
+        line=$(awk '/^\[Software\\\\Wine\\\\DllOverrides\]/ {f=1; next} /^\[/ {f=0} f && tolower($0) ~ /^"d3d9"=.*native/' "$reg" | head -1)
+        [ -n "$line" ] && hits="a native Direct3D 9 override ($line)"
+    fi
+    [ -n "$hits" ] || return 0
+    echo
+    echo "NOTE: this bottle uses $hits."
+    echo "The game's protection hooks Direct3D 9, and DXVK or similar graphics layers are reported to"
+    echo "cause this same error even with the fix. If you still see it, switch the bottle back to"
+    echo "its default graphics setting."
+    return 1
+}
+
 do_check() {
     require_game
     local bottles="$HOME/Library/Application Support/CrossOver/Bottles"
@@ -257,7 +284,7 @@ do_check() {
     echo "Fix installed     : $installed"
     echo "Testing in bottle : $bottle (takes a few seconds)"
 
-    local dest="$bottles/$bottle/drive_c/rawinput_overflow_probe.exe" out
+    local dest="$bottles/$bottle/drive_c/rawinput_overflow_probe.exe" out bdir_check="$bottles/$bottle"
     cp "$probe" "$dest" || die "Could not copy the test program into the bottle."
     out=$("$CX_APP/Contents/SharedSupport/CrossOver/bin/wine" --bottle "$bottle" --no-gui \
         --debugmsg -all --cx-app 'C:\rawinput_overflow_probe.exe' 2>&1)
@@ -276,17 +303,18 @@ do_check() {
                 echo "RESULT: the fix is installed, but the bug is still showing."
                 echo "Quit CrossOver completely (and leftovers: bash install.sh does this), then"
                 echo "run 'bash install.sh check' again."
-            elif [ "$VERSION" = "$SUPPORTED" ]; then
+            elif prebuilt_available; then
                 echo "RESULT: the bug is present. Run:  bash install.sh"
             else
                 echo "RESULT: the bug is present, but there is no ready-made fix for CrossOver"
-                echo "$VERSION yet. See DETAILS.md (\"Other CrossOver versions\") to build one."
+                echo "$VERSION yet. Build one with: bash build-dll.sh $VERSION (see DETAILS.md)."
             fi ;;
         *)
             echo "RESULT: the test did not finish. Output was:"
             echo "$out" | tail -5
             exit 1 ;;
     esac
+    check_graphics "$bdir_check" || true
 }
 
 # True if a Wine process of the game in folder $1 is running (its command line holds the
@@ -717,6 +745,42 @@ EOF2
     echo "For a CrossOver icon for its settings tool, run: bash install.sh launchers"
 }
 
+# Starts the game. If CrossOver is closed, first stops any leftover processes (they can make
+# CrossOver hang). Uses the "UaRO Game" launcher app when it exists, otherwise starts uaRO.exe
+# through CrossOver's wine. PLAY_DRY_RUN=1 only prints what it would do.
+do_play() {
+    require_game
+    pick_game
+    local bottles="$HOME/Library/Application Support/CrossOver/Bottles"
+    local rel="${GAME_DIR#"$bottles"/}" bottle gamename winrel app
+    bottle="${rel%%/*}"; gamename=$(basename "$GAME_DIR")
+    winrel="${GAME_DIR#"$bottles/$bottle"/drive_c/}"
+    game_running "$gamename" && { echo "The game is already running."; return 0; }
+
+    if ! crossover_running; then
+        if [ "${PLAY_DRY_RUN:-0}" = 1 ]; then
+            local p; p=$(stale_pids | tr '\n' ' ')
+            [ -n "${p// /}" ] && echo "(dry run) would stop leftover processes: $p"
+        else
+            kill_leftovers
+        fi
+    fi
+
+    app=$(find "$HOME/Applications/CrossOver" -maxdepth 3 -name "UaRO Game.app" -path "*/$gamename/*" 2>/dev/null | head -1)
+    if [ -n "$app" ]; then
+        echo "Starting the game from its CrossOver launcher..."
+        [ "${PLAY_DRY_RUN:-0}" = 1 ] && { echo "(dry run) would run: open \"$app\""; return 0; }
+        open "$app"
+    else
+        echo "Starting the game through CrossOver (run 'bash install.sh launchers' for a proper icon)..."
+        local win="C:\\${winrel//\//\\}"
+        [ "${PLAY_DRY_RUN:-0}" = 1 ] && { echo "(dry run) would run: wine --bottle $bottle ... $win\\uaRO.exe"; return 0; }
+        "$CX_APP/Contents/SharedSupport/CrossOver/bin/wine" --bottle "$bottle" --workdir "$win" \
+            --cx-app "$win\\uaRO.exe" >/dev/null 2>&1 &
+        disown 2>/dev/null
+    fi
+}
+
 # OPTIONAL extras. `extras` installs the fix AND adds both extras; `extras undo` removes the
 # extras only. A problem with one extra does not stop the other.
 do_extras() {
@@ -770,5 +834,6 @@ case "${CMD:-install}" in
     azzyai)    do_azzyai ;;
     launchers) do_launchers ;;
     setup)     do_setup ;;
-    *)         echo "Usage: bash install.sh [install|check|uninstall|setup|extras|window|keys|azzyai|launchers] [-y]"; exit 1 ;;
+    play)      do_play ;;
+    *)         echo "Usage: bash install.sh [install|check|uninstall|setup|play|extras|window|keys|azzyai|launchers] [-y]"; exit 1 ;;
 esac

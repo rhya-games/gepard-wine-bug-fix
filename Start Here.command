@@ -48,10 +48,11 @@ while true; do
     echo
     echo "  1) Install the fix"
     echo "  2) Install the fix WITH the optional extras (window, keyboard, AzzyAI, icons)"
-    echo "  3) Check that it is working"
-    echo "  4) Uninstall the fix"
-    echo "  5) Optional extras, one at a time"
-    echo "  6) Quit"
+    echo "  3) Play (clears leftover processes first, then starts the game)"
+    echo "  4) Check that it is working"
+    echo "  5) Uninstall the fix"
+    echo "  6) Optional extras, one at a time"
+    echo "  7) Quit"
     echo
     printf "Type a number and press Return: "
     read -r choice
@@ -59,11 +60,12 @@ while true; do
     case "$choice" in
         1) bash install.sh ;;
         2) bash install.sh extras ;;
-        3) bash install.sh check ;;
-        4) bash install.sh uninstall ;;
-        5) extras_menu ; continue ;;
-        6|q|Q|"") exit 0 ;;
-        *) echo "Please type a number from 1 to 6." ;;
+        3) bash install.sh play ;;
+        4) bash install.sh check ;;
+        5) bash install.sh uninstall ;;
+        6) extras_menu ; continue ;;
+        7|q|Q|"") exit 0 ;;
+        *) echo "Please type a number from 1 to 7." ;;
     esac
     echo
     printf "Press Return to go back to the menu..."

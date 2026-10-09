@@ -22,6 +22,9 @@ for another version, apply the patch to the matching sources and follow those st
 
 SHA-256: c2cc2d3a25b9b74bd2269b209debfbaaaafcf28c40def18ada05993aab80d701
 
+Any other wow64win.dll.crossover-<version> file in this repository is made the same way,
+from the matching CrossOver sources, with build-dll.sh; checksums are in SHA256SUMS.
+
 This project is not affiliated with, endorsed by, or supported by the Wine
 project, CodeWeavers, or Gravity. "Wine" and "CrossOver" are used only to
 describe compatibility. The scripts and documents in this repository are separate

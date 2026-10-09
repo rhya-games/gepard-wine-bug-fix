@@ -17,8 +17,9 @@ Build and license information is in [NOTICE](NOTICE).
 |---|---|
 | `NOTICE` | license and build information for the shipped Wine DLL |
 | `Start Here.command` | double-click menu that runs `install.sh` for non-Terminal users |
-| `install.sh` | `install`, `check`, `uninstall`, `setup`, plus the optional `extras` (install the fix and add the extras), `window`, `keys`, `azzyai` and `launchers`; asks before quitting CrossOver and always stops leftover bottle processes (`-y` answers yes) |
-| `wow64win.dll.crossover-26.3.0` | the fixed Wine file, prebuilt, **CrossOver 26.3.0 only** |
+| `install.sh` | `install`, `check`, `uninstall`, `setup`, plus `play` (start the game after clearing leftover processes) and the optional `extras` (install the fix and add the extras), `window`, `keys`, `azzyai` and `launchers`; asks before quitting CrossOver and always stops leftover bottle processes (`-y` answers yes) |
+| `wow64win.dll.crossover-26.3.0` | the fixed Wine file, prebuilt (one per CrossOver version, listed in `SHA256SUMS`) |
+| `build-dll.sh` | builds that file for another CrossOver version |
 | `patch_opensetup_rosetta.py` | first-run setup.exe fix (used by `bash install.sh setup`) |
 | `rawinput_overflow_probe.c` / `.exe` | detects the bug, and confirms the fix |
 | `wow64win-rawinput-devicelist.patch` | the fix as a source patch, with the analysis in the header |
@@ -195,10 +196,28 @@ Recorded so nobody repeats the work. Not fixed.
 
 ## Other CrossOver versions, or other Wine runtimes
 
-The prebuilt file matches **CrossOver 26.3.0 only**. For any other version, or for
-Sikarugir / Whisky / plain Wine, rebuild `wow64win.dll` from the matching sources
-with the one-line fix and put it next to that runtime's `ntdll.so`. The full
-procedure is in `SKILL.md`, or hand `SHARE-PROMPT.md` to Claude.
+`install.sh` uses the ready-made file named `wow64win.dll.crossover-<version>` for the CrossOver
+you have, and checks it against `SHA256SUMS` before copying it. Only 26.3.0 is included. On
+another version it runs the check and tells you whether the bug is present. If it is, build the
+file for your version:
+
+    brew install mingw-w64 bison      # once, with Xcode command line tools and Rosetta
+    bash build-dll.sh 26.4.0          # your version, from "CrossOver > About"
+    bash install.sh
+
+`build-dll.sh` downloads CodeWeavers' sources for that version (about 150 MB), applies the
+one-line fix by function name (so it does not depend on line numbers), builds only
+`wow64win.dll`, and adds its checksum to `SHA256SUMS`. If the sources already have the fix, it
+says so and builds nothing. It follows the manual steps in `SKILL.md`. It was run end to end for
+26.3.0: the freshly built file passed the bug probe (`AFFECTED=no`), though it is not
+byte-identical to the one in this repo because a newer mingw compiler was used. It also picks an
+SDK the linker can read (a very new default SDK failed on one Mac) and uses Homebrew's `bison`,
+since the macOS one is too old. To add a version for everyone, commit the new file and its
+`SHA256SUMS` line.
+
+For Sikarugir / Whisky / plain Wine, rebuild `wow64win.dll` from the matching sources and put it
+next to that runtime's `ntdll.so`; the full procedure is in `SKILL.md`, or hand `SHARE-PROMPT.md`
+to Claude.
 
 ## Checking things (optional)
 
@@ -223,6 +242,11 @@ To check a Wine or CrossOver source tree instead of running anything:
 
 `i < *count` is the bug, `i < ret` is fixed. Re-run the probe after every
 CrossOver update: once it says `AFFECTED=no` you can drop the patched DLL.
+
+`bash install.sh check` also looks at the bottle's graphics settings. The game's protection hooks
+Direct3D 9, and DXVK (or similar layers) are reported to cause this same error even with the fix,
+so it warns if the bottle's settings name DXVK, D3DMetal or DXMT, or the registry sets a native
+`d3d9`. This is based on a Whisky install's notes and has not been confirmed on CrossOver.
 
 ### Is the fixed DLL actually loaded?
 
