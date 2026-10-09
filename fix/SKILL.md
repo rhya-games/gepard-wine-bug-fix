@@ -42,10 +42,10 @@ x87 encodings (`DC D8`, `DC D0`) that real x86 CPUs accept as aliases of
 loads `mss32.dll`, which in a Gepard-protected install is hooked by the
 anti-cheat and should not be loaded outside the game.
 
-Run `patch_opensetup_rosetta.py` (shipped next to this file):
+Run `profiles/uaro/patch_opensetup_rosetta.py` (in the repository root, one folder up from this file):
 
 ```sh
-python3 patch_opensetup_rosetta.py \
+python3 profiles/uaro/patch_opensetup_rosetta.py \
   "$HOME/Library/Application Support/CrossOver/Bottles/<BOTTLE>/drive_c/users/crossover/AppData/Local/Programs/<GAME DIR>/setup.exe"
 ```
 

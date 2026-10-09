@@ -155,7 +155,7 @@ what the thunk wrongly relied on. If it says `AFFECTED=no`, stop: nothing to fix
 
 ## Step 2 — build the fixed DLL
 
-(Shortcut: if this checkout contains `wow64win.dll.crossover-26.3.0` and `install.sh`
+(Shortcut: if this checkout contains `fix/wow64win.dll.crossover-26.3.0` and `install.sh`
 and CrossOver is exactly 26.3.0, run `bash install.sh` with CrossOver quit, then skip to
 Step 4. Otherwise build from matching sources as below.)
 

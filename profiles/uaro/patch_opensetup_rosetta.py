@@ -16,7 +16,7 @@ yet:
 
 The offsets below are for the uaRO "World of Your Dream" OpenSetup build with
 the original SHA-256 recorded in ORIGINAL_SHA256.  The script refuses to touch
-anything else -- see DETAILS.md and SKILL.md for how to locate the equivalent
+anything else -- see docs/uaro.md and fix/SKILL.md for how to locate the equivalent
 bytes in a different build.
 
 Usage:  patch_opensetup_rosetta.py [--check] /path/to/setup.exe

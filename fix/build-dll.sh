@@ -1,7 +1,7 @@
 #!/bin/bash
 # Builds the fixed wow64win.dll for a CrossOver version from CodeWeavers' published sources.
 #
-#   bash build-dll.sh 26.4.0
+#   bash fix/build-dll.sh 26.4.0
 #
 # Needs (once): Xcode command line tools (xcode-select --install), Rosetta on Apple Silicon
 # (softwareupdate --install-rosetta), and two Homebrew tools: brew install mingw-w64 bison
@@ -9,7 +9,7 @@
 # Downloads about 150 MB of sources and compiles Wine's build tools, so it takes a while.
 #
 # Result: wow64win.dll.crossover-<version> next to this script, plus its checksum line added to
-# SHA256SUMS, so `bash install.sh` can use it straight away. Details: DETAILS.md
+# SHA256SUMS, so `bash install.sh` can use it straight away. Details: docs/fix.md
 #
 # Verified end to end for 26.3.0 (the result passed the bug probe). It picks an SDK the linker
 # can read, and uses Homebrew's bison when the system one is too old.
@@ -20,7 +20,7 @@ cd "$(dirname "$0")" || exit 1
 die() { echo; echo "STOP: $*"; exit 1; }
 
 V="${1:-}"
-case "$V" in [0-9]*.[0-9]*.[0-9]*) ;; *) die "Usage: bash build-dll.sh <CrossOver version>, for example 26.3.0
+case "$V" in [0-9]*.[0-9]*.[0-9]*) ;; *) die "Usage: bash fix/build-dll.sh <CrossOver version>, for example 26.3.0
 Your installed version: $(defaults read /Applications/CrossOver.app/Contents/Info.plist CFBundleVersion 2>/dev/null | cut -d. -f1-3)" ;; esac
 
 OUT="wow64win.dll.crossover-$V"

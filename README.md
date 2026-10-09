@@ -1,15 +1,20 @@
-# Fix for "Gepard::T Code: 3::110::12" on macOS (CrossOver)
+# Ragnarok Online tools for CrossOver (macOS)
 
-If Ragnarok Online shows this right after a map loads:
+Tools for playing Ragnarok Online on a Mac with [CrossOver](https://www.codeweavers.com/crossover):
 
-    GS 3.0 :: <build>
-    Gepard::T Code: 3::110::12
+- **The Gepard fix.** Cures `Gepard::T Code: 3::110::12`, which appears right after a map loads:
 
-it is a bug in Wine (the part of CrossOver that runs Windows programs). It is not
-a Gepard bug and not a broken install, and this fix does not touch the anti-cheat.
+      GS 3.0 :: <build>
+      Gepard::T Code: 3::110::12
 
-**Ready-made for CrossOver 26.3.0.** On another version the installer tells you whether you need
-the fix and how to build one ([details](DETAILS.md#other-crossover-versions-or-other-wine-runtimes)).
+  It is a bug in Wine (the part of CrossOver that runs Windows programs), not a Gepard bug and
+  not a broken install. The fix is on the Wine side and does not touch the anti-cheat. It works for
+  any Ragnarok Online client that uses Gepard Shield 3.0. Ready-made for CrossOver 26.3.0; on
+  another version the installer tells you whether you need it and how to build one
+  ([details](docs/fix.md#other-crossover-versions-or-other-wine-runtimes)).
+- **Play.** Starts the game after clearing leftover Wine processes that can freeze CrossOver.
+- **Optional extras.** Window size that fits your screen, Mac keyboard settings, launcher icons in
+  CrossOver, and, for the uaRO server, AzzyAI and a fix for the first-run setup window.
 
 ## How to install
 
@@ -18,9 +23,9 @@ stop with a message if they cannot find the game.
 
 ### Easiest: double-click
 
-1. [Download the ZIP](https://github.com/rhya-games/gepard-wine-bug-fix/archive/refs/heads/main.zip)
+1. [Download the ZIP](https://github.com/rhya-games/ro-crossover-tools/archive/refs/heads/main.zip)
    and unzip it (Safari does this for you).
-2. Double-click `Start Here.command`. ([macOS blocked it?](DETAILS.md#macos-says-it-cannot-verify-start-herecommand))
+2. Double-click `Start Here.command`. ([macOS blocked it?](docs/troubleshooting.md#macos-says-it-cannot-verify-start-herecommand))
 3. Type `1` to install the fix, or `2` to install it **with** the
    [optional extras](#optional-extras-not-needed-for-the-fix), then press Return. If it
    offers to fix the game's setup window, type `y`. It ends by checking that the fix works.
@@ -31,20 +36,19 @@ stop with a message if they cannot find the game.
 2. Open Terminal (press `Cmd + Space`, type `Terminal`, press Return), then paste this and
    press Return:
 
-       cd ~/Downloads/gepard-wine-bug-fix-main
+       cd ~/Downloads/ro-crossover-tools-main
 
    That assumes the folder is in Downloads. If it is somewhere else, type `cd ` (with a
    space), drag the folder from Finder into the Terminal window, and press Return.
 3. Run the installer, either by itself or **with** the
-   [optional extras](#optional-extras-not-needed-for-the-fix) (window size, Mac keyboard
-   settings, AzzyAI which asks first, and launcher icons). Pick one:
+   [optional extras](#optional-extras-not-needed-for-the-fix). Pick one:
 
        bash install.sh
 
        bash install.sh extras
 
-   If CrossOver is open, it asks to quit it; type `y`. On a new install it also offers to
-   fix the game's setup window ([why](DETAILS.md#new-installs-the-opensetup-patch)); type
+   If CrossOver is open, it asks to quit it; type `y`. On a new uaRO install it also offers to
+   fix the game's setup window ([why](docs/uaro.md#new-installs-the-opensetup-patch)); type
    `y`. It ends by checking that the fix works; you want "the fix is installed and
    working". If it says STOP, read the message.
 
@@ -70,43 +74,20 @@ This puts the original file back (it asks before quitting CrossOver if it is ope
 You can skip these. To install the fix and add them all at once, run `bash install.sh extras`
 (double-click menu item 2). Running it again later adds them to an existing install. Remove
 them with `bash install.sh extras undo`; the fix stays installed. Each one separately is
-under menu item 5.
+under menu item 6.
 
-**Fit the game window to your screen.** Quit the game, then run:
+| extra | command | for | details |
+|---|---|---|---|
+| Fit the game window to your screen (quit the game first) | `bash install.sh window` (`window undo` to revert) | any game | [how it works](docs/extras.md#optional-fitting-the-game-window-how-it-works) |
+| Mac keyboard settings: Option works as Alt, Command stays Command | `bash install.sh keys on` (`keys off` to revert) | any game | [how it works](docs/extras.md#optional-mac-keyboard-settings-how-it-works) |
+| CrossOver launcher icons for the game, the patcher, setup and AzzyAI settings | `bash install.sh launchers` (`launchers remove` to revert) | any game | [how it works](docs/extras.md#optional-crossover-launcher-icons-how-it-works) |
+| AzzyAI, the latest build (third-party; asks before downloading; keeps your original AI folder) | `bash install.sh azzyai` (`azzyai undo` to revert) | uaRO only | [how it works](docs/uaro.md#optional-azzyai-how-it-works) |
 
-    bash install.sh window
+**Known limitation (not fixed):** Cmd+Tab does not work with full screen: tabbing back gives a
+black screen. Use windowed mode. ([Details](docs/extras.md#known-failure-cmdtab-in-full-screen))
 
-Undo with `bash install.sh window undo`. ([How it works](DETAILS.md#optional-fitting-the-game-window-how-it-works))
-
-**Mac keyboard settings.** Option works as Alt, and the Command keys stay normal Mac
-Command keys. Turn on with:
-
-    bash install.sh keys on
-
-Turn off with `bash install.sh keys off`, then restart CrossOver.
-([How it works](DETAILS.md#optional-mac-keyboard-settings-how-it-works))
-
-**AzzyAI.** Installs the latest [AzzyAI](https://github.com/RagnaJDC/AzzyAI-Pre-Renewal)
-(a homunculus and mercenary AI). It is third-party, for uaRO pre-renewal only, and asks
-before it downloads anything. Your original AI folder is kept, and it switches AzzyAI on
-for you, so there is nothing to type in the game.
-
-    bash install.sh azzyai
-
-Remove it with `bash install.sh azzyai undo`.
-([How it works](DETAILS.md#optional-azzyai-how-it-works))
-
-**CrossOver launcher icons.** Adds icons in your CrossOver bottle for the game (not the
-patcher), its setup program and, if AzzyAI is installed, its settings tool:
-
-    bash install.sh launchers
-
-Remove them with `bash install.sh launchers remove`.
-([How it works](DETAILS.md#optional-crossover-launcher-icons-how-it-works))
-
-**Known limitation (not fixed):** Cmd+Tab does not work with full screen: tabbing
-back gives a black screen. Use windowed mode.
-([Details](DETAILS.md#known-failure-cmdtab-in-full-screen))
+"For uaRO only" extras come from the uaRO profile. To use the tools with another server, see
+[docs/uaro.md](docs/uaro.md#using-the-tools-with-another-server).
 
 ## If something goes wrong
 
@@ -114,23 +95,29 @@ back gives a black screen. Use windowed mode.
   `bash` at the front), exactly as written above.
 - **"No permission to change files inside CrossOver.app":** open System Settings,
   Privacy & Security, App Management, turn on Terminal, then quit and reopen Terminal.
-- **"The program setup.exe has encountered a serious problem":** run
+- **"The program setup.exe has encountered a serious problem" (uaRO):** run
   `bash install.sh setup`. It patches the `setup.exe` inside your bottle (the installer offers
   this too); patching a different copy does nothing.
-- **CrossOver freezes or will not open after you force-quit it:** run
-  `bash install.sh`. It finds leftover processes and offers to stop them.
+- **CrossOver freezes or will not open after you force-quit it:** run `bash install.sh play`, or
+  `bash install.sh`. Both stop leftover processes automatically.
 - **The game still shows the 3::110 error:** run `bash install.sh check`. If it says
   the fix is working, make sure you started the game after installing, with CrossOver
   closed and reopened.
+
+More: [docs/troubleshooting.md](docs/troubleshooting.md).
 
 ## After a CrossOver update
 
 An update removes the fix. Run `bash install.sh` again. If it says there is no ready-made
 fix for your new version, it first tests whether that version still has the bug. If it does,
-build one with `bash build-dll.sh <your CrossOver version>` (needs `brew install mingw-w64 bison` once) and run `bash install.sh` again
-([details](DETAILS.md#other-crossover-versions-or-other-wine-runtimes)).
+build one with `bash fix/build-dll.sh <your CrossOver version>` (needs `brew install mingw-w64 bison`
+once) and run `bash install.sh` again
+([details](docs/fix.md#other-crossover-versions-or-other-wine-runtimes)).
 
 ## More
 
-[DETAILS.md](DETAILS.md) has the technical cause, which versions are affected, the
-checks, other CrossOver versions, and manual steps. Build and license information is in [NOTICE](NOTICE).
+- [docs/fix.md](docs/fix.md): the technical cause, affected versions, checks, building for other versions
+- [docs/extras.md](docs/extras.md): how the window, keyboard and launcher extras work
+- [docs/uaro.md](docs/uaro.md): uaRO-specific extras and using another server
+- [docs/files.md](docs/files.md): what each file is, checksums
+- [NOTICE](NOTICE): license and build information for the shipped Wine file
