@@ -17,7 +17,7 @@ Build and license information is in [NOTICE](NOTICE).
 |---|---|
 | `NOTICE` | license and build information for the shipped Wine DLL |
 | `Start Here.command` | double-click menu that runs `install.sh` for non-Terminal users |
-| `install.sh` | `install`, `check`, `uninstall`, `setup`, plus the optional `extras` (install the fix and add both extras), `window` and `keys`; asks before quitting CrossOver and always stops leftover bottle processes (`-y` answers yes) |
+| `install.sh` | `install`, `check`, `uninstall`, `setup`, plus the optional `extras` (install the fix and add the extras), `window`, `keys`, `azzyai` and `launchers`; asks before quitting CrossOver and always stops leftover bottle processes (`-y` answers yes) |
 | `wow64win.dll.crossover-26.3.0` | the fixed Wine file, prebuilt, **CrossOver 26.3.0 only** |
 | `patch_opensetup_rosetta.py` | first-run setup.exe fix (used by `bash install.sh setup`) |
 | `rawinput_overflow_probe.c` / `.exe` | detects the bug, and confirms the fix |
@@ -82,6 +82,60 @@ Example on a 1728 x 1117 (points) MacBook screen with the Dock at the bottom: us
 1728 x 984 at (0, 33). The 28 px title bar was measured on that one setup. Wine only hides
 the menu bar when a window covers the whole screen, so this does not hide it; it just
 removes the guesswork about size.
+
+## Optional: CrossOver launcher icons (how it works)
+
+`bash install.sh launchers` (also run by `extras`) adds entries to the bottle's program list in
+CrossOver, next to the patcher's own entry:
+
+| icon | program | notes |
+|---|---|---|
+| UaRO Game | `uaRO.exe` | the game itself, not the patcher; started without arguments |
+| UaRO Setup | `setup.exe` | the graphics and sound setup |
+| AzzyAI Config | `AI\USER_AI\AzzyAiConfigPreRe.exe` | only if AzzyAI is installed |
+
+It writes a short VBScript and runs it with Wine's `wscript.exe` to create Windows `.lnk`
+shortcuts in the bottle's Start Menu folder for the game (`...\Start Menu\Programs\<game
+folder>\`), then runs `cxmenu --sync` so CrossOver registers them and extracts each program's
+icon. Wine's script engine has no `WshShell.SpecialFolders`, so the Start Menu path is built from
+the bottle's user folder instead. Entries whose program does not exist yet are skipped, and
+re-running it refreshes them (for example after installing AzzyAI). `launchers remove` deletes
+just these three shortcuts and syncs again. Reopen CrossOver if it was open.
+
+## Optional: AzzyAI (how it works)
+
+`bash install.sh azzyai` (also run by `extras`, which asks first) installs the latest release
+of [RagnaJDC/AzzyAI-Pre-Renewal](https://github.com/RagnaJDC/AzzyAI-Pre-Renewal), a
+uaRO-specific build of Dr. Azzy's AzzyAI. Its README says it is for uaRO pre-renewal only and
+errors on other servers, so the command needs `uaRO.exe` in the game folder. It is third-party
+software that this repository does not ship (it has no license on GitHub); it is downloaded
+when you run the command, after you confirm. Check your server's rules about AI scripts.
+
+1. Reads the repository's releases from the GitHub API and takes the first `.zip` asset
+   (currently `uaRO.AzzyAI.Beta.0.90.zip`, about 40 MB).
+2. Downloads it to a temporary folder, tests the zip, unpacks it and checks that it has
+   `AI/AI.lua` and `AI/USER_AI`.
+3. Moves the game's current `AI` folder to `AI-BEFORE-AZZYAI` (a numbered copy if that
+   already exists) and puts the new `AI` folder in its place, with a small marker file
+   (`AI/.azzyai-release`) recording the version.
+4. Running it again does nothing if the installed release is already the latest. If a newer
+   release exists, the old AzzyAI folder, with your settings, is kept as `AI-AZZYAI-OLD`.
+
+`bash install.sh azzyai undo` restores the original folder and keeps the AzzyAI files in
+`AI-AZZYAI-REMOVED`; `bash install.sh azzyai status` shows what is installed. It refuses to run
+while the game is open.
+
+The in-game switches `/hoai` (homunculus) and `/merai` (mercenary) are saved in
+`savedata/OptionInfo.lua` as `CmdOnOffList["/hoai"]` and `["/merai"]`, so the command sets both
+to `1` (and `undo` sets them back to `0`), keeping a one-time backup
+(`OptionInfo.lua.before-azzyai.backup`). If that file does not exist yet, start the game once
+and run the command again, or type the two commands in the game. This matches a working
+install where both were `1`; it was not confirmed in the game here. If `AAIStartM.txt` or
+`AAIStartH.txt` appears in the game folder, AzzyAI is running.
+
+Change AzzyAI's settings with `AI\USER_AI\AzzyAiConfigPreRe.exe` from the game folder. This build
+ships with its own settings (for example `StickyStandby = 1`); this
+repository does not change them. For testing without GitHub, set `AZZYAI_ZIP=/path/to/file.zip`.
 
 ## Optional: Mac keyboard settings (how it works)
 

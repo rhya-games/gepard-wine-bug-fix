@@ -33,3 +33,10 @@ Built from rawinput_overflow_probe.c in this repository (a small test program th
 only calls the Windows GetRawInputDeviceList API).
 
 SHA-256: 5e829ee8b1338fa208c55d080ce6e0bbb827322e7b9883446c611708c180cae5
+
+AzzyAI (optional, not included)
+-------------------------------
+`bash install.sh azzyai` can download the latest release of
+https://github.com/RagnaJDC/AzzyAI-Pre-Renewal (a uaRO build of Dr. Azzy's AzzyAI) when you
+run it. It is third-party software, is not part of this repository, and is not covered by
+anything in this repository. See that project for its terms.

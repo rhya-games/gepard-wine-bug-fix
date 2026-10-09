@@ -6,7 +6,7 @@
 #   bash install.sh uninstall    put the original file back
 #   bash install.sh setup        new installs only: patch the game's setup.exe
 # OPTIONAL extras (not needed for the fix):
-#   bash install.sh extras       install the fix AND add both extras (window fit + Mac keys)
+#   bash install.sh extras       install the fix AND add the extras (window fit, Mac keys, AzzyAI, launchers)
 #   bash install.sh extras undo  remove both extras (the fix stays installed)
 #   bash install.sh window       fit the game window to the usable screen area
 #   bash install.sh window undo  put the game's window settings back
@@ -14,6 +14,10 @@
 #   bash install.sh keys on      Mac Option=Alt, Command stays Command, no display capture
 #   bash install.sh keys off     undo the Mac key settings
 #   bash install.sh keys status  show what is set
+#   bash install.sh azzyai       install the latest AzzyAI (uaRO pre-renewal) from GitHub
+#   bash install.sh azzyai undo  put the game's original AI folder back
+#   bash install.sh launchers    add CrossOver launcher icons (game, setup, AzzyAI config)
+#   bash install.sh launchers remove  remove them (and restore the patcher shortcut name)
 #
 # Add -y to answer "yes" to the questions (quit CrossOver, fix setup.exe). Leftover processes
 # are always stopped, without asking.
@@ -285,6 +289,12 @@ do_check() {
     esac
 }
 
+# True if a Wine process of the game in folder $1 is running (its command line holds the
+# Windows path, e.g. ...\Programs\<game folder>\game.exe).
+game_running() {
+    ps -axo command | grep -F -- "\\$1\\" | grep -qv grep
+}
+
 # OPTIONAL: fit the game's window to the usable screen area (below the menu bar, above
 # the Dock) by editing savedata/OptionInfo.lua. The 28 px title bar was measured on one Mac.
 TITLE_BAR=28
@@ -331,8 +341,7 @@ EOF2
         return 0
     fi
 
-    # The game's command line holds its Windows path, e.g. ...\Programs\<game folder>\game.exe
-    ps -axo command | grep -F -- "\\$gamedir\\" | grep -qv grep \
+    game_running "$gamedir" \
         && die "The game is running. Quit it completely first: it rewrites its settings when it closes."
 
     if [ "$action" = "undo" ]; then
@@ -439,6 +448,229 @@ pick_one() {
     PICKED="${items[$((n - 1))]}"
 }
 
+# Sets GAME_DIR (the folder holding uaRO.exe; asks if there is more than one).
+pick_game() {
+    local bottles="$HOME/Library/Application Support/CrossOver/Bottles" f
+    local found=()
+    while IFS= read -r f; do found+=("$(dirname "$f")"); done < <(
+        find "$bottles" -ipath "*/drive_c/*" -iname "uaRO.exe" -not -ipath "*/windows/*" 2>/dev/null)
+    [ ${#found[@]} -gt 0 ] || die "uaRO.exe was not found in any bottle."
+    pick_one "Which game folder?" "${found[@]}"
+    GAME_DIR="$PICKED"
+}
+
+# OPTIONAL: launcher icons in the CrossOver bottle (the program list) for the game itself
+# (not the patcher), its setup program and, if installed, the AzzyAI config tool.
+# Entries: name | exe relative to the game folder | description
+LAUNCHERS=(
+    "UaRO Game|uaRO.exe|UaRO game"
+    "UaRO Setup|setup.exe|UaRO graphics and sound setup"
+    "AzzyAI Config|AI\\USER_AI\\AzzyAiConfigPreRe.exe|AzzyAI settings"
+)
+
+# Renames the installer's shortcut that starts the patcher ("<game folder>.lnk", in the Start
+# Menu folder and on the Desktop) to "UaRO Patcher.lnk", or back. Only touches a shortcut whose
+# target is UaRo Patcher.exe.
+rename_patcher_shortcuts() {   # $1 = bottle dir, $2 = game folder name, $3 = from, $4 = to
+    local f dir
+    RENAMED=0
+    while IFS= read -r f; do
+        dir=$(dirname "$f")
+        [ -e "$dir/$4.lnk" ] && continue
+        grep -qai "UaRo Patcher" "$f" && mv "$f" "$dir/$4.lnk" && RENAMED=$((RENAMED + 1))
+    done < <(find "$1/drive_c/users" \( -path "*/Start Menu/Programs/$2/$3.lnk" -o -path "*/Desktop/$3.lnk" \) 2>/dev/null)
+}
+
+do_launchers() {
+    require_game
+    local action="${ARG1:-add}"
+    case "$action" in add|remove) ;; *) die "Usage: bash install.sh launchers [remove]" ;; esac
+    pick_game
+    local bottles="$HOME/Library/Application Support/CrossOver/Bottles"
+    local rel="${GAME_DIR#"$bottles"/}" bottle bdir gamename winrel wingame
+    bottle="${rel%%/*}"; bdir="$bottles/$bottle"; gamename=$(basename "$GAME_DIR")
+    winrel="${GAME_DIR#"$bdir"/drive_c/}"; wingame="C:\\${winrel//\//\\}"
+    local wine="$CX_APP/Contents/SharedSupport/CrossOver/bin/wine"
+    local cxmenu="$CX_APP/Contents/SharedSupport/CrossOver/bin/cxmenu"
+    local entry name exe desc
+
+    if [ "$action" = "remove" ]; then
+        for entry in "${LAUNCHERS[@]}"; do
+            IFS='|' read -r name exe desc <<EOF2
+$entry
+EOF2
+            find "$bdir/drive_c/users" -path "*/Start Menu/Programs/$gamename/$name.lnk" -delete 2>/dev/null
+        done
+        rename_patcher_shortcuts "$bdir" "$gamename" "UaRO Patcher" "$gamename"
+        "$cxmenu" --sync --bottle "$bottle" --mode install >/dev/null 2>&1
+        echo "Removed the launcher icons from the CrossOver bottle $bottle."
+        return 0
+    fi
+
+    # Wine's script engine has no SpecialFolders, so build the Start Menu path ourselves.
+    local user; user=$(ls "$bdir/drive_c/users" 2>/dev/null | grep -vi "^public$" | head -1)
+    [ -n "$user" ] || die "Could not find the Windows user folder in the bottle."
+    mkdir -p "$bdir/drive_c/users/$user/AppData/Roaming/Microsoft/Windows/Start Menu/Programs/$gamename" \
+        || die "Could not create the Start Menu folder."
+    local winmenu="C:\\users\\$user\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\$gamename"
+
+    local vbs="$bdir/drive_c/launchers-$$.vbs" made=() skipped=() exepath dirpart
+    {
+        echo 'Set sh = CreateObject("WScript.Shell")'
+        echo "folder = \"$winmenu\""
+        for entry in "${LAUNCHERS[@]}"; do
+            IFS='|' read -r name exe desc <<EOF2
+$entry
+EOF2
+            exepath="$GAME_DIR/${exe//\\//}"
+            if [ ! -f "$exepath" ]; then skipped+=("$name"); continue; fi
+            made+=("$name")
+            dirpart="${exe%\\*}"; [ "$dirpart" = "$exe" ] && dirpart=""
+            echo "Set l = sh.CreateShortcut(folder & \"\\$name.lnk\")"
+            echo "l.TargetPath = \"$wingame\\$exe\""
+            echo "l.WorkingDirectory = \"$wingame${dirpart:+\\$dirpart}\""
+            echo "l.Description = \"$desc\""
+            echo "l.Save"
+        done
+    } > "$vbs"
+    "$wine" --bottle "$bottle" --no-gui wscript.exe //nologo "C:\\$(basename "$vbs")" >/dev/null 2>&1
+    local rc=$?
+    rm -f "$vbs"
+    [ $rc -eq 0 ] || die "Could not create the launchers (Wine's script engine failed)."
+    rename_patcher_shortcuts "$bdir" "$gamename" "$gamename" "UaRO Patcher"
+    "$cxmenu" --sync --bottle "$bottle" --mode install >/dev/null 2>&1
+
+    # (${arr[@]+...} keeps an empty list from tripping `set -u` on the macOS bash 3.2)
+    [ "$RENAMED" -gt 0 ] && echo "Renamed the patcher's shortcut to: UaRO Patcher"
+    for name in ${made[@]+"${made[@]}"}; do echo "Added launcher: $name"; done
+    for name in ${skipped[@]+"${skipped[@]}"}; do echo "Skipped: $name (its program is not in the game folder yet)"; done
+    echo "They appear in CrossOver under the bottle $bottle (reopen CrossOver if it is open)."
+    echo "Remove them with: bash install.sh launchers remove"
+}
+
+# The in-game /hoai and /merai switches are saved in savedata/OptionInfo.lua as
+# CmdOnOffList["/hoai"] and ["/merai"] (1 = use the custom AI). Sets both to $2 in game folder $1.
+# Returns 1 if the file does not exist yet (the game has never been started).
+azzy_set_ai_switches() {
+    local file="$1/savedata/OptionInfo.lua"
+    [ -f "$file" ] || return 1
+    [ -e "$file.before-azzyai.backup" ] || cp -p "$file" "$file.before-azzyai.backup"
+    python3 - "$file" "$2" <<'PYEOF'
+import re, sys
+path, val = sys.argv[1], int(sys.argv[2])
+s = open(path, newline="").read()
+for key in ("/hoai", "/merai"):
+    s, n = re.subn(r'(CmdOnOffList\["%s"\]\s*=\s*)\d+' % re.escape(key), r'\g<1>%d' % val, s)
+    if n != 1:
+        sys.exit("expected exactly one %s line, found %d" % (key, n))
+open(path, "w", newline="").write(s)
+PYEOF
+}
+
+# OPTIONAL: install the latest AzzyAI (a homunculus / mercenary AI) from its GitHub release.
+# This build is made for uaRO pre-renewal only. The game's AI folder is replaced; the old one
+# is kept as AI-BEFORE-AZZYAI. Third-party software, downloaded when you run this.
+AZZY_REPO="RagnaJDC/AzzyAI-Pre-Renewal"
+AZZY_MARKER=".azzyai-release"
+
+do_azzyai() {
+    require_game
+    local action="${ARG1:-install}"
+    case "$action" in install|undo|status) ;; *) die "Usage: bash install.sh azzyai [undo|status]" ;; esac
+    pick_game
+    local game="$GAME_DIR" gamename; gamename=$(basename "$game")
+    local ai="$game/AI" marker="$game/AI/$AZZY_MARKER"
+
+    if [ "$action" = "status" ]; then
+        if [ -f "$marker" ]; then echo "AzzyAI installed: $(cut -f1 "$marker") ($(cut -f2 "$marker"))"
+        else echo "AzzyAI is not installed (the game uses its original AI folder)."; fi
+        ls -d "$game"/AI-BEFORE-AZZYAI* 2>/dev/null | sed 's/^/Backup of the original: /'
+        return 0
+    fi
+
+    game_running "$gamename" && die "The game is running. Quit it completely first."
+
+    if [ "$action" = "undo" ]; then
+        [ -f "$marker" ] || die "AzzyAI does not look installed (no marker in $ai)."
+        local backup; backup=$(ls -dt "$game"/AI-BEFORE-AZZYAI* 2>/dev/null | head -1)
+        [ -n "$backup" ] || die "No backup of the original AI folder was found, so nothing to restore."
+        local removed="$game/AI-AZZYAI-REMOVED"; [ -e "$removed" ] && removed="$removed-$(date +%s)"
+        mv "$ai" "$removed" && mv "$backup" "$ai" || die "Could not restore the original AI folder."
+        echo "Restored the original AI folder."
+        azzy_set_ai_switches "$game" 0 && echo "/hoai and /merai are switched back off in the game's settings."
+        echo "Your AzzyAI files (and any settings you changed) are kept in: $removed"
+        echo "Delete that folder when you no longer need it."
+        return 0
+    fi
+
+    command -v curl >/dev/null && command -v python3 >/dev/null || die "curl and python3 are needed."
+    local name url published
+    if [ -n "${AZZYAI_ZIP:-}" ]; then   # offline/testing: use a local zip instead of GitHub
+        name=$(basename "$AZZYAI_ZIP"); url=""; published="local"
+    else
+        local info
+        info=$(curl -fsSL -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/$AZZY_REPO/releases" | python3 -c '
+import json, sys
+for r in json.load(sys.stdin):
+    for a in r.get("assets", []):
+        if a["name"].lower().endswith(".zip"):
+            print("\t".join([a["name"], a["browser_download_url"], r.get("published_at", "")]))
+            sys.exit(0)
+sys.exit(1)') || die "Could not find the latest AzzyAI release on GitHub (are you online?)."
+        IFS=$'\t' read -r name url published <<EOF2
+$info
+EOF2
+    fi
+
+    if [ -f "$marker" ] && [ "$(cut -f1 "$marker")" = "$name" ] && [ "$(cut -f2 "$marker")" = "$published" ]; then
+        echo "AzzyAI is already up to date ($name)."
+        azzy_set_ai_switches "$game" 1 && echo "/hoai and /merai are switched on in the game's settings."
+        return 0
+    fi
+
+    echo "Latest AzzyAI: $name (github.com/$AZZY_REPO)"
+    echo "This build is for uaRO pre-renewal only, and it replaces the game's AI folder"
+    echo "(the original is kept). Check your server's rules about AI scripts."
+    ask "Install it?" || { echo "Skipped. Install it later with: bash install.sh azzyai"; return 0; }
+
+    local tmp; tmp=$(mktemp -d) || die "Could not create a temporary folder."
+    trap 'rm -rf "$tmp"' RETURN
+    local zip="$tmp/azzyai.zip"
+    if [ -n "${AZZYAI_ZIP:-}" ]; then cp "$AZZYAI_ZIP" "$zip" || die "Could not read $AZZYAI_ZIP."
+    else
+        echo "Downloading (about 40 MB)..."
+        curl -fL --progress-bar -o "$zip" "$url" || die "The download failed."
+    fi
+    unzip -tq "$zip" >/dev/null 2>&1 || die "The download is not a valid zip file."
+    ditto -xk "$zip" "$tmp/x" || die "Could not unpack the download."
+    [ -f "$tmp/x/AI/AI.lua" ] && [ -d "$tmp/x/AI/USER_AI" ] || die "The download does not have the expected AI folder."
+
+    if [ -e "$ai" ]; then
+        if [ -f "$marker" ]; then       # an older AzzyAI: keep it aside, the original backup stays
+            local old="$game/AI-AZZYAI-OLD"; [ -e "$old" ] && rm -rf "$old"
+            mv "$ai" "$old" || die "Could not move the old AzzyAI aside."
+            echo "Your previous AzzyAI folder (and settings) is kept in: $old"
+        else
+            local backup="$game/AI-BEFORE-AZZYAI"; [ -e "$backup" ] && backup="$backup-$(date +%s)"
+            mv "$ai" "$backup" || die "Could not back up the game's AI folder."
+            echo "Backup of the original AI folder: $backup"
+        fi
+    fi
+    mv "$tmp/x/AI" "$ai" || die "Could not put the AzzyAI folder in place."
+    printf '%s\t%s\n' "$name" "$published" > "$marker"
+    echo "AzzyAI installed ($name)."
+    if azzy_set_ai_switches "$game" 1; then
+        echo "/hoai and /merai are switched on in the game's settings, so you do not need to type them."
+        echo "Start the game and summon your homunculus or mercenary (log in again if one is out)."
+    else
+        echo "Start the game once, then run this again to switch AzzyAI on (or type /hoai and /merai in the game)."
+    fi
+    echo "To change its settings, run AI\\USER_AI\\AzzyAiConfigPreRe.exe from the game folder."
+    echo "Remove it with: bash install.sh azzyai undo"
+    echo "For a CrossOver icon for its settings tool, run: bash install.sh launchers"
+}
+
 # OPTIONAL extras. `extras` installs the fix AND adds both extras; `extras undo` removes the
 # extras only. A problem with one extra does not stop the other.
 do_extras() {
@@ -446,12 +678,16 @@ do_extras() {
     if [ "${ARG1:-}" = "undo" ]; then
         echo "== Mac keyboard settings: off =="; ARG1=off; ( do_keys ) || echo "(skipped)"
         echo; echo "== Game window: undo =="; ARG1=undo; ( do_window ) || echo "(skipped)"
+        echo; echo "== AzzyAI: remove =="; ARG1=undo; ( do_azzyai ) || echo "(skipped)"
+        echo; echo "== CrossOver launchers: remove =="; ARG1=remove; ( do_launchers ) || echo "(skipped)"
         return 0
     fi
     [ -z "${ARG1:-}" ] || die "Usage: bash install.sh extras [undo]"
     echo "== The fix =="; INSTALL_QUIET=1 do_install
     echo; echo "== Mac keyboard settings: on =="; ARG1=on; ( do_keys ) || echo "(skipped)"
     echo; echo "== Game window: fit =="; ARG1=fit; ( do_window ) || echo "(skipped)"
+    echo; echo "== AzzyAI (asks first) =="; ARG1=install; ( do_azzyai ) || echo "(skipped)"
+    echo; echo "== CrossOver launchers =="; ARG1=add; ( do_launchers ) || echo "(skipped)"
     echo
     echo "Now open CrossOver (quit it completely first if it was open) and start the game."
     echo "A CrossOver update will remove the fix; run this script again afterwards."
@@ -485,6 +721,8 @@ case "${CMD:-install}" in
     extras)    do_extras ;;
     keys)      do_keys ;;
     window)    do_window ;;
+    azzyai)    do_azzyai ;;
+    launchers) do_launchers ;;
     setup)     do_setup ;;
-    *)         echo "Usage: bash install.sh [install|check|uninstall|setup|extras|window|keys] [-y]"; exit 1 ;;
+    *)         echo "Usage: bash install.sh [install|check|uninstall|setup|extras|window|keys|azzyai|launchers] [-y]"; exit 1 ;;
 esac

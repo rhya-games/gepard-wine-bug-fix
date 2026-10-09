@@ -35,8 +35,8 @@ stop with a message if they cannot find the game.
    That assumes the folder is in Downloads. If it is somewhere else, type `cd ` (with a
    space), drag the folder from Finder into the Terminal window, and press Return.
 3. Run the installer, either by itself or **with** the
-   [optional extras](#optional-extras-not-needed-for-the-fix) (window size and Mac keyboard
-   settings). Pick one:
+   [optional extras](#optional-extras-not-needed-for-the-fix) (window size, Mac keyboard
+   settings, AzzyAI which asks first, and launcher icons). Pick one:
 
        bash install.sh
 
@@ -61,9 +61,9 @@ This puts the original file back (it asks before quitting CrossOver if it is ope
 
 ## Optional extras (not needed for the fix)
 
-You can skip these. To install the fix and add both at once, run `bash install.sh extras`
+You can skip these. To install the fix and add them all at once, run `bash install.sh extras`
 (double-click menu item 2). Running it again later adds them to an existing install. Remove
-both with `bash install.sh extras undo`; the fix stays installed. Each one separately is
+them with `bash install.sh extras undo`; the fix stays installed. Each one separately is
 under menu item 5.
 
 **Fit the game window to your screen.** Quit the game, then run:
@@ -79,6 +79,24 @@ Command keys. Turn on with:
 
 Turn off with `bash install.sh keys off`, then restart CrossOver.
 ([How it works](DETAILS.md#optional-mac-keyboard-settings-how-it-works))
+
+**AzzyAI.** Installs the latest [AzzyAI](https://github.com/RagnaJDC/AzzyAI-Pre-Renewal)
+(a homunculus and mercenary AI). It is third-party, for uaRO pre-renewal only, and asks
+before it downloads anything. Your original AI folder is kept, and it switches AzzyAI on
+for you, so there is nothing to type in the game.
+
+    bash install.sh azzyai
+
+Remove it with `bash install.sh azzyai undo`.
+([How it works](DETAILS.md#optional-azzyai-how-it-works))
+
+**CrossOver launcher icons.** Adds icons in your CrossOver bottle for the game (not the
+patcher), its setup program and, if AzzyAI is installed, its settings tool:
+
+    bash install.sh launchers
+
+Remove them with `bash install.sh launchers remove`.
+([How it works](DETAILS.md#optional-crossover-launcher-icons-how-it-works))
 
 **Known limitation (not fixed):** Cmd+Tab does not work with full screen: tabbing
 back gives a black screen. Use windowed mode.

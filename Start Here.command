@@ -13,7 +13,11 @@ extras_menu() {
         echo "  3) Mac keyboard: turn on (Option = Alt, Command stays Command)"
         echo "  4) Mac keyboard: turn off (back to Wine's defaults)"
         echo "  5) Mac keyboard: show what is set"
-        echo "  6) Back"
+        echo "  6) AzzyAI: install the latest (uaRO pre-renewal only, asks first)"
+        echo "  7) AzzyAI: remove it (puts the original AI folder back)"
+        echo "  8) CrossOver launcher icons: add (game, setup, AzzyAI settings)"
+        echo "  9) CrossOver launcher icons: remove"
+        echo "  0) Back"
         echo
         printf "Type a number and press Return: "
         read -r k
@@ -24,8 +28,12 @@ extras_menu() {
             3) bash install.sh keys on ;;
             4) bash install.sh keys off ;;
             5) bash install.sh keys status ;;
-            6|"") return ;;
-            *) echo "Please type a number from 1 to 6." ;;
+            6) bash install.sh azzyai ;;
+            7) bash install.sh azzyai undo ;;
+            8) bash install.sh launchers ;;
+            9) bash install.sh launchers remove ;;
+            0|"") return ;;
+            *) echo "Please type a number from 0 to 9." ;;
         esac
         echo
         printf "Press Return to continue..."
@@ -39,7 +47,7 @@ while true; do
     echo "----------------------"
     echo
     echo "  1) Install the fix"
-    echo "  2) Install the fix WITH the optional extras (window size, Mac keyboard)"
+    echo "  2) Install the fix WITH the optional extras (window, keyboard, AzzyAI, icons)"
     echo "  3) Check that it is working"
     echo "  4) Uninstall the fix"
     echo "  5) Optional extras, one at a time"
