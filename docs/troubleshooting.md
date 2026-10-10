@@ -41,3 +41,22 @@ none is found it stops with "install the game first". To skip the check (for exa
 DLL fix before the game exists), add `--skip-game-check`, as in
 `bash install.sh --skip-game-check`.
 
+## Keyboard tips
+
+These come from running the game on a Mac under Whisky; macOS behaves the same under CrossOver.
+
+**F1-F12 do the wrong thing.** On Apple keyboards macOS makes the top row control brightness,
+volume and Mission Control. Pick one fix:
+
+- *Move the skill bar (works everywhere).* In the game's own shortcut settings, shift the whole
+  hotkey bar down one row: F1-F12 to `1`-`9`, `1`-`9` to `Q`-`O`, `Q`-`O` to `A`-`L`. Nothing then
+  depends on the F-row.
+- *Make the F-row normal.* On an Apple keyboard: System Settings, Keyboard, Keyboard Shortcuts,
+  Function Keys, "Use F1, F2, etc. keys as standard function keys". Third-party keyboards (Keychron
+  and similar) decide this in their own firmware, so no macOS setting changes it; use the move above.
+
+**Menu shortcuts do nothing with Command.** The game's menu shortcuts are built for Windows' Alt+letter.
+Wine also adds a hidden Edit menu that catches Command+A and Command+Z before the game sees them.
+`bash install.sh keys on` makes Option act as Alt, so use Option+letter. Command+C and Command+V keep
+working for copy and paste. Do not turn off Wine's Edit menu (`EditMenu`): that fixes A and Z but
+breaks Command+V.

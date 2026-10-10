@@ -118,6 +118,17 @@ black screen. Use windowed mode. ([Details](docs/extras.md#known-failure-cmdtab-
 
 More: [docs/troubleshooting.md](docs/troubleshooting.md).
 
+## Keyboard tips
+
+- **F1-F12 change brightness or volume instead of using skills.** Easiest: in the game's shortcut
+  settings, move your skill bar down one row (F1-F12 to `1`-`9`, and so on). Or turn on "Use F1,
+  F2, etc. keys as standard function keys" in System Settings, Keyboard, Keyboard Shortcuts,
+  Function Keys.
+- **Menu shortcuts (item window and so on) need Option, not Command.** They are Alt+letter in
+  Windows. Turn on `bash install.sh keys on`, then use Option+letter. Copy and paste still use Command.
+
+More: [docs/troubleshooting.md](docs/troubleshooting.md#keyboard-tips).
+
 ## After a CrossOver update
 
 An update removes the fix. Run `bash install.sh` again. If it says there is no ready-made
