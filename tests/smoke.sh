@@ -78,14 +78,14 @@ out=$(run -y); check "installs the ready-made DLL" "$(cmp -s "$PREBUILT" "$DLLDI
 check "keeps a versioned backup" "$([ -f "$DLLDIR/wow64win.dll.orig-26.3.0" ] && echo 0 || echo 1)"
 out=$(run); check "second run says already installed" "$([[ $out == *"already installed"* ]] && echo 0 || echo 1)"
 check "ends with the automatic check" "$([[ $out == *"RESULT"* ]] && echo 0 || echo 1)" "$out"
-out=$(run uninstall); check "uninstall restores the original" "$([ "$(cat "$DLLDIR/wow64win.dll")" = stock ] && echo 0 || echo 1)" "$out"
+out=$(run uninstall fix); check "uninstall fix restores the original DLL" "$([ "$(cat "$DLLDIR/wow64win.dll")" = stock ] && echo 0 || echo 1)" "$out"
 set_version 27.0.0.1; echo yes > "$T/affected"; out=$(run); check "unknown version points to build-dll.sh" "$([[ $out == *"build-dll.sh 27.0.0"* ]] && echo 0 || echo 1)" "$out"
 set_version 26.3.0.39832; echo no > "$T/affected"
 
 echo "leftover processes"
 start 'C:\windows\system32\leftover.exe'
 out=$(run -y); check "stops leftover bottle processes" "$([[ $out == *"Stopping leftover"* ]] && echo 0 || echo 1)"
-echo stock > "$DLLDIR/wow64win.dll"; run uninstall >/dev/null
+echo stock > "$DLLDIR/wow64win.dll"; run uninstall fix >/dev/null
 
 echo "keyboard settings"
 run keys on >/dev/null; out=$(run keys status)
@@ -128,6 +128,19 @@ stop
 for i in 1 2 3 4 5 6 7 8 9 10 11 12; do sleep 1; run backup >/dev/null; done
 check "only the newest 10 are kept" "$([ "$(ls -d "$T/backups/Fake RO"/* | wc -l | tr -d ' ')" -le 10 ] && echo 0 || echo 1)"
 unset RO_BACKUP_DIR
+
+echo "uninstall everything"
+echo stock > "$DLLDIR/wow64win.dll"; rm -f "$DLLDIR"/wow64win.dll.orig*
+run -y extras >/dev/null
+check "setup: everything installed first" "$([ -f "$GAME/AI/.azzyai-release" ] && [ "$(cmp -s "$PREBUILT" "$DLLDIR/wow64win.dll" && echo ok)" = ok ] && echo 0 || echo 1)"
+out=$(run uninstall </dev/null); check "uninstall asks first and changes nothing without a yes" "$([[ $out == *"Nothing was changed"* && -f "$GAME/AI/.azzyai-release" ]] && echo 0 || echo 1)" "$out"
+out=$(run -y uninstall)
+check "uninstall puts the original DLL back" "$([ "$(cat "$DLLDIR/wow64win.dll")" = stock ] && echo 0 || echo 1)" "$out"
+check "uninstall removes AzzyAI" "$([ ! -f "$GAME/AI/.azzyai-release" ] && [ "$(cat "$GAME/AI/AI.lua")" = orig ] && echo 0 || echo 1)"
+check "uninstall switches /hoai /merai off" "$([ "$(grep -c '= 1' "$GAME/savedata/OptionInfo.lua")" -le 3 ] && grep -q '"/hoai"\] = 0' "$GAME/savedata/OptionInfo.lua" && echo 0 || echo 1)"
+check "uninstall restores the window settings" "$(grep -q 'WIDTH"\] = 800' "$GAME/savedata/OptionInfo.lua" && echo 0 || echo 1)"
+out=$(run keys status); check "uninstall removes the keyboard settings" "$([[ $out == *"not set"* ]] && echo 0 || echo 1)" "$out"
+check "uninstall keeps the save-data backups" "$([ -d "$T/backups" ] || [ -d "$H/Documents/RO Backups" ] && echo 0 || echo 1)"
 
 echo "open"
 rm -f "$T/open.log"; out=$(run open); check "open shows the game folder in Finder" "$([[ -f "$T/open.log" && "$(cat "$T/open.log")" == *"Fake RO" ]] && echo 0 || echo 1)" "$out"

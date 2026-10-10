@@ -65,11 +65,14 @@ item 3 in `Start Here.command`, or:
 
 ## How to uninstall
 
-Open Terminal, go to the folder as in "Or use Terminal", and run:
+Double-click menu item 8, or open Terminal, go to the folder as in "Or use Terminal", and run:
 
     bash install.sh uninstall
 
-This puts the original file back (it asks before quitting CrossOver if it is open).
+This puts everything back as it was: the Wine fix, and anything the extras changed (window size,
+keyboard settings, AzzyAI, launcher icons, the setup.exe fix). It asks first, and it asks before
+quitting CrossOver if it is open. Your save-data backups are kept. To remove only the Wine fix, run
+`bash install.sh uninstall fix`.
 
 ## Optional extras (not needed for the fix)
 

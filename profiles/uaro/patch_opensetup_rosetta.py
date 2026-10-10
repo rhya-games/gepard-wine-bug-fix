@@ -19,10 +19,12 @@ the original SHA-256 recorded in ORIGINAL_SHA256.  The script refuses to touch
 anything else -- see docs/uaro.md and fix/SKILL.md for how to locate the equivalent
 bytes in a different build.
 
-Usage:  patch_opensetup_rosetta.py [--check] /path/to/setup.exe
+Usage:  patch_opensetup_rosetta.py [--check | --restore] /path/to/setup.exe
 
 --check only reports and never writes: exit 0 = known build that still needs the patch,
 1 = already patched, 2 = not a build this script knows.
+--restore puts the original setup.exe back from its backup (exit 3 = no backup, 4 = backup is
+not the original file).
 """
 
 from __future__ import annotations
@@ -67,7 +69,8 @@ def needs_patch(data: bytes) -> int:
 def main() -> int:
     args = sys.argv[1:]
     check_only = "--check" in args
-    args = [a for a in args if a != "--check"]
+    restore = "--restore" in args
+    args = [a for a in args if a not in ("--check", "--restore")]
     if len(args) != 1:
         raise SystemExit(f"usage: {sys.argv[0]} [--check] /path/to/setup.exe")
 
@@ -76,6 +79,20 @@ def main() -> int:
     current = sha256(data)
     if check_only:
         return needs_patch(data)
+    if restore:
+        backup = setup.with_name(f"{setup.name}.original-{ORIGINAL_SHA256[:12]}.backup")
+        if not backup.exists():
+            print(f"No backup next to {setup}; nothing to restore.")
+            return 3
+        if sha256(backup.read_bytes()) != ORIGINAL_SHA256:
+            print(f"Refusing: {backup} is not the original file (unexpected SHA-256).")
+            return 4
+        tmp = setup.with_name(f".{setup.name}.restoring")
+        shutil.copy2(backup, tmp)
+        os.replace(tmp, setup)
+        backup.unlink()
+        print(f"Restored the original {setup.name} and removed its backup.")
+        return 0
 
     for offset, original, replacement, _ in PATCHES:
         actual = data[offset : offset + len(original)]

@@ -165,3 +165,16 @@ EOF2
     echo "Remove it with: bash install.sh azzyai undo"
     echo "For a CrossOver icon for its settings tool, run: bash install.sh launchers"
 }
+
+# Puts the original setup.exe back (from the backup the patcher made next to it).
+restore_setup() {
+    [ -n "$SETUP_PATCH" ] && command -v python3 >/dev/null || return 0
+    local bottles="$HOME/Library/Application Support/CrossOver/Bottles" f n=0
+    while IFS= read -r f; do
+        if python3 "$PROFILE_DIR/$SETUP_PATCH" --restore "$f" >/dev/null 2>&1; then
+            n=$((n + 1)); echo "Restored the original $SETUP_EXE in $(basename "$(dirname "$f")")."
+        fi
+    done < <(find "$bottles" -ipath "*/drive_c/*" -iname "$SETUP_EXE" -not -ipath "*/windows/*" \
+                 -not -ipath "*/Program Files*/Common Files/*" 2>/dev/null)
+    [ "$n" -gt 0 ] || echo "($SETUP_EXE was not changed, so nothing to restore.)"
+}

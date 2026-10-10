@@ -3,7 +3,7 @@
 #
 #   bash install.sh              install the fix
 #   bash install.sh check        is the bug present / is the fix working?
-#   bash install.sh uninstall    put the original file back
+#   bash install.sh uninstall    put everything back as it was (asks first; uninstall fix = Wine fix only)
 #   bash install.sh setup        new installs only: patch the game's setup.exe
 #   bash install.sh play         clear leftover processes, then start the game
 #   bash install.sh backup       copy your save data to ~/Documents/RO Backups (also: backup list, backup restore)

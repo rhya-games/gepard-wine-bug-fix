@@ -53,7 +53,7 @@ while true; do
     echo "  5) Open the game folder in Finder"
     echo "  6) Back up your save data"
     echo "  7) Collect a report to ask for help (doctor)"
-    echo "  8) Uninstall the fix"
+    echo "  8) Uninstall everything (puts it all back as it was)"
     echo "  9) Quit"
     echo
     printf "Type a number and press Return: "

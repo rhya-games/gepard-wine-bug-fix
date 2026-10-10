@@ -39,13 +39,42 @@ do_install() {
     echo "A CrossOver update will remove the fix; run this script again afterwards."
 }
 
+# Puts the original wow64win.dll back. Returns 1 (with a message) if it cannot.
+uninstall_fix() {
+    if [ ! -e "$BACKUP" ]; then
+        echo "No backup for CrossOver $VERSION, so the fix is not installed (or CrossOver was updated"
+        echo "since, which already removed it)."
+        return 1
+    fi
+    cp -p "$BACKUP" "$DLL" || { echo "Could not restore the original file."; return 1; }
+    echo "Original file restored. The fix is removed."
+}
+
+# `uninstall` removes everything this tool changed and puts it back as it was; `uninstall fix`
+# removes only the Wine fix. Your save-data backups are kept.
 do_uninstall() {
     check_writable
+    if [ "${ARG1:-}" = "fix" ]; then
+        ensure_crossover_closed
+        uninstall_fix || exit 1
+        return 0
+    fi
+    echo "This puts everything back as it was:"
+    echo "  - the Wine fix (the original CrossOver file)"
+    echo "  - the window size, the Mac keyboard settings and the AzzyAI install (if you added them)"
+    echo "  - the CrossOver launcher icons and the patcher's shortcut name"
+    echo "  - the game's setup.exe fix"
+    echo "Your save-data backups in ~/Documents/RO Backups are kept."
+    ask "Remove everything?" || { echo "Nothing was changed."; return 0; }
     ensure_crossover_closed
-    [ -e "$BACKUP" ] || die "No backup for CrossOver $VERSION ($BACKUP), so nothing to restore.
-If CrossOver was updated since you installed the fix, the fix is already gone."
-    cp -p "$BACKUP" "$DLL" || die "Could not restore the original file."
-    echo "Original file restored. The fix is removed."
+
+    echo; echo "== The Wine fix =="; uninstall_fix || true
+    echo; echo "== Extras =="; ( ARG1=undo; do_extras ) || echo "(skipped)"
+    echo; echo "== Setup program =="; ( restore_setup ) || echo "(skipped)"
+    echo
+    echo "Done. Everything is back as it was. Reopen CrossOver."
+    echo "If AzzyAI was installed, its files are kept in the game folder as AI-AZZYAI-REMOVED;"
+    echo "delete that folder when you like."
 }
 
 # Looks for graphics settings known to cause the same error: the protection hooks Direct3D 9,
