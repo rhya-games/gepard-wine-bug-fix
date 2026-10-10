@@ -43,16 +43,17 @@ extras_menu() {
 
 while true; do
     clear
-    echo "Gepard / CrossOver fix"
-    echo "----------------------"
+    echo "Ragnarok Online tools for CrossOver"
+    echo "------------------------------------"
     echo
     echo "  1) Install the fix"
     echo "  2) Install the fix WITH the optional extras (window, keyboard, AzzyAI, icons)"
     echo "  3) Play (clears leftover processes first, then starts the game)"
-    echo "  4) Check that it is working"
-    echo "  5) Uninstall the fix"
-    echo "  6) Optional extras, one at a time"
-    echo "  7) Quit"
+    echo "  4) View optional extras"
+    echo "  5) Open the game folder in Finder"
+    echo "  6) Collect a report to ask for help (doctor)"
+    echo "  7) Uninstall the fix"
+    echo "  8) Quit"
     echo
     printf "Type a number and press Return: "
     read -r choice
@@ -61,11 +62,12 @@ while true; do
         1) bash install.sh ;;
         2) bash install.sh extras ;;
         3) bash install.sh play ;;
-        4) bash install.sh check ;;
-        5) bash install.sh uninstall ;;
-        6) extras_menu ; continue ;;
-        7|q|Q|"") exit 0 ;;
-        *) echo "Please type a number from 1 to 7." ;;
+        4) extras_menu ; continue ;;
+        5) bash install.sh open ;;
+        6) bash install.sh doctor ;;
+        7) bash install.sh uninstall ;;
+        8|q|Q|"") exit 0 ;;
+        *) echo "Please type a number from 1 to 8." ;;
     esac
     echo
     printf "Press Return to go back to the menu..."

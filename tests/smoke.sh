@@ -113,6 +113,16 @@ start 'C:\users\crossover\AppData\Local\Programs\Fake RO\x.exe'
 out=$(run play); check "play notices the game is running" "$([[ $out == *"already running"* ]] && echo 0 || echo 1)" "$out"
 stop
 
+echo "open"
+rm -f "$T/open.log"; out=$(run open); check "open shows the game folder in Finder" "$([[ -f "$T/open.log" && "$(cat "$T/open.log")" == *"Fake RO" ]] && echo 0 || echo 1)" "$out"
+rm -f "$T/open.log"; run open savedata >/dev/null; check "open savedata" "$([[ "$(cat "$T/open.log" 2>/dev/null)" == *"savedata" ]] && echo 0 || echo 1)"
+rm -f "$T/open.log"; run open bottle >/dev/null; check "open bottle" "$([[ "$(cat "$T/open.log" 2>/dev/null)" == *"drive_c" ]] && echo 0 || echo 1)"
+
+echo "doctor"
+out=$(run doctor)
+check "doctor prints a report" "$([[ $out == *"ro-crossover-tools report"* && $out == *"bug present"* && $out == *"Mac keyboard settings"* ]] && echo 0 || echo 1)" "$out"
+check "doctor leaves out the user name and home path" "$([[ $out != *"$(id -un)"* && $out != *"$H"* ]] && echo 0 || echo 1)"
+
 echo "graphics warning"
 mkdir -p "$T/gfx"; printf '[EnvironmentVariables]\n"CX_GRAPHICS_BACKEND" = "dxvk"\n' > "$T/gfx/cxbottle.conf"
 fn=$(sed -n '/^check_graphics() {/,/^}/p' "$ROOT"/install.sh "$ROOT"/lib/*.sh 2>/dev/null)

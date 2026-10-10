@@ -161,3 +161,20 @@ EOF2
     echo "They appear in CrossOver under the bottle $bottle (reopen CrossOver if it is open)."
     echo "Remove them with: bash install.sh launchers remove"
 }
+
+# Opens the game folder (or its savedata folder, or the bottle's C: drive) in Finder. The folder
+# is inside ~/Library, which Finder hides, so this saves hunting for it.
+do_open() {
+    require_game
+    pick_game
+    local what="${ARG1:-game}" target
+    case "$what" in
+        game)     target="$GAME_DIR" ;;
+        savedata) target="$GAME_DIR/savedata" ;;
+        bottle)   target="${GAME_DIR%%/drive_c/*}/drive_c" ;;
+        *) die "Usage: bash install.sh open [game|savedata|bottle]" ;;
+    esac
+    [ -d "$target" ] || die "That folder does not exist yet: $target"
+    echo "Opening: $target"
+    open "$target"
+}

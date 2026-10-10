@@ -4,9 +4,9 @@ Back to the [README](../README.md).
 
 | path | what it is |
 |---|---|
-| `install.sh` | the one command: `install`, `check`, `uninstall`, `setup`, `play`, `extras`, `window`, `keys`, `azzyai`, `launchers` (asks before quitting CrossOver; always stops leftover bottle processes; `-y` answers yes) |
+| `install.sh` | the one command: `install`, `check`, `uninstall`, `setup`, `play`, `open`, `doctor`, `extras`, `window`, `keys`, `azzyai`, `launchers` (asks before quitting CrossOver; always stops leftover bottle processes; `-y` answers yes) |
 | `Start Here.command` | double-click menu that runs `install.sh` |
-| `lib/` | the shell code behind `install.sh`: `core.sh` (helpers), `fix.sh`, `extras.sh`, `game.sh`, `uaro.sh` |
+| `lib/` | the shell code behind `install.sh`: `core.sh` (helpers), `fix.sh`, `extras.sh`, `game.sh`, `uaro.sh`, `doctor.sh` |
 | `profiles/uaro/` | uaRO settings (`profile.conf`) and its `setup.exe` patcher |
 | `fix/` | the Wine fix: ready-made DLLs, `SHA256SUMS`, `build-dll.sh`, the source patch, the bug probe, and the AI-facing `SKILL.md` and `SHARE-PROMPT.md` |
 | `tests/smoke.sh` | smoke tests against a fake CrossOver (`bash tests/smoke.sh`) |

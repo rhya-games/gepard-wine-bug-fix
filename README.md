@@ -74,7 +74,7 @@ This puts the original file back (it asks before quitting CrossOver if it is ope
 You can skip these. To install the fix and add them all at once, run `bash install.sh extras`
 (double-click menu item 2). Running it again later adds them to an existing install. Remove
 them with `bash install.sh extras undo`; the fix stays installed. Each one separately is
-under menu item 6.
+under menu item 4.
 
 | extra | command | for | details |
 |---|---|---|---|
@@ -103,6 +103,11 @@ black screen. Use windowed mode. ([Details](docs/extras.md#known-failure-cmdtab-
 - **The game still shows the 3::110 error:** run `bash install.sh check`. If it says
   the fix is working, make sure you started the game after installing, with CrossOver
   closed and reopened.
+
+- **You cannot find the game folder in Finder:** it is inside the hidden `~/Library` folder. Run
+  `bash install.sh open` (menu item 5) to open it. Add `savedata` or `bottle` to open those instead.
+- **You need help:** run `bash install.sh doctor` (menu item 6). It prints and copies a short summary
+  of your setup, with your user name removed, to paste where you ask.
 
 More: [docs/troubleshooting.md](docs/troubleshooting.md).
 

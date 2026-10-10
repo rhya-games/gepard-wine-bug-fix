@@ -71,6 +71,20 @@ check_graphics() {   # $1 = bottle dir
     return 1
 }
 
+# Runs the bug probe inside bottle $1. Sets PROBE_OUT (its output) and PROBE_RESULT
+# (yes = bug present, no = bug not present, unknown). Returns 1 if the probe could not be copied in.
+run_probe() {
+    local bottles="$HOME/Library/Application Support/CrossOver/Bottles"
+    local probe="$FIX_DIR/rawinput_overflow_probe.exe" dest="$bottles/$1/drive_c/rawinput_overflow_probe.exe"
+    PROBE_OUT=""; PROBE_RESULT="unknown"
+    [ -f "$probe" ] && cp "$probe" "$dest" 2>/dev/null || return 1
+    PROBE_OUT=$("$CX_APP/Contents/SharedSupport/CrossOver/bin/wine" --bottle "$1" --no-gui \
+        --debugmsg -all --cx-app 'C:\rawinput_overflow_probe.exe' 2>&1)
+    rm -f "$dest"
+    case "$PROBE_OUT" in *AFFECTED=no*) PROBE_RESULT=no ;; *AFFECTED=yes*) PROBE_RESULT=yes ;; esac
+    return 0
+}
+
 do_check() {
     require_game
     local bottles="$HOME/Library/Application Support/CrossOver/Bottles"
@@ -88,11 +102,9 @@ do_check() {
     echo "Fix installed     : $installed"
     echo "Testing in bottle : $bottle (takes a few seconds)"
 
-    local dest="$bottles/$bottle/drive_c/rawinput_overflow_probe.exe" out bdir_check="$bottles/$bottle"
-    cp "$probe" "$dest" || die "Could not copy the test program into the bottle."
-    out=$("$CX_APP/Contents/SharedSupport/CrossOver/bin/wine" --bottle "$bottle" --no-gui \
-        --debugmsg -all --cx-app 'C:\rawinput_overflow_probe.exe' 2>&1)
-    rm -f "$dest"
+    local out bdir_check="$bottles/$bottle"
+    run_probe "$bottle" || die "Could not copy the test program into the bottle."
+    out="$PROBE_OUT"
 
     echo
     case "$out" in

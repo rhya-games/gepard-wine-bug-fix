@@ -2,6 +2,23 @@
 
 Back to the [README](../README.md).
 
+## Asking for help: the doctor report
+
+`bash install.sh doctor` (menu item 6 in `Start Here.command`) prints one summary of your setup and
+copies it to the clipboard, so you can paste it where you ask for help. It changes nothing; it only
+runs the bug probe, a small test program, in the game's bottle. It reports:
+
+- the tools' version, macOS, chip and whether Rosetta is installed;
+- the CrossOver version, whether it is open, and any leftover Wine processes;
+- whether a ready-made fix exists for your CrossOver, whether it is installed, and whether a backup of the original exists;
+- the game's bottle and folder name, and whether the game is running;
+- the bug probe result and any graphics-setting warning (the same ones `check` gives);
+- window size and mode, the `/hoai` and `/merai` switches, whether AzzyAI is installed, whether the
+  `setup.exe` patch is applied, the Mac keyboard values, and which CrossOver launchers exist.
+
+Your home folder and user name are removed from the text (paths show as `~` or `/Users/<user>`).
+Bottle and game folder names are included, so look over it before you post it publicly.
+
 ## macOS says it cannot verify Start Here.command
 
 Files downloaded from the internet are marked "quarantined", and macOS blocks unsigned
