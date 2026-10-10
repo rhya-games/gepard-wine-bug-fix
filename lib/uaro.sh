@@ -128,6 +128,7 @@ EOF2
     echo "(the original is kept). Check your server's rules about AI scripts."
     ask "Install it?" || { echo "Skipped. Install it later with: bash install.sh azzyai"; return 0; }
 
+    auto_backup "$game"
     local tmp; tmp=$(mktemp -d) || die "Could not create a temporary folder."
     trap 'rm -rf "$tmp"' RETURN
     local zip="$tmp/azzyai.zip"

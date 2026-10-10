@@ -4,7 +4,7 @@ Back to the [README](../README.md).
 
 ## Asking for help: the doctor report
 
-`bash install.sh doctor` (menu item 6 in `Start Here.command`) prints one summary of your setup and
+`bash install.sh doctor` (menu item 7 in `Start Here.command`) prints one summary of your setup and
 copies it to the clipboard, so you can paste it where you ask for help. It changes nothing; it only
 runs the bug probe, a small test program, in the game's bottle. It reports:
 

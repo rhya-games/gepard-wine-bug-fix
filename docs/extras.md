@@ -1,5 +1,8 @@
 # Optional extras that work for any game
 
+(The save-data backup, last on this page, is not optional: it runs by itself before the extras that
+change your files.)
+
 None of these are needed for the fix, and each can be undone. They are all run by
 `bash install.sh extras` (together with the extras in [uaRO](uaro.md)). Back to the [README](../README.md).
 
@@ -96,3 +99,17 @@ Recorded so nobody repeats the work. Not fixed.
   `bash install.sh keys off` returns Wine to its defaults.
 - **Untested workaround:** play in windowed mode (not full screen) and drag the window to its
   own Desktop in Mission Control.
+
+## Save-data backup (how it works)
+
+`bash install.sh backup` copies the game's `savedata/` folder (character settings, hotkeys and the
+option files; it cannot be downloaded again) to
+`~/Documents/RO Backups/<game folder>/savedata-<date>-<time>`. Set `RO_BACKUP_DIR` to use another
+place. The newest 10 are kept for each game; older ones are deleted.
+
+- `bash install.sh backup list` shows what you have.
+- `bash install.sh backup restore` puts back the newest manual backup. It asks first, refuses while
+  the game is running, and keeps a `before-restore-...` copy of what it replaced. Files that were
+  added after the backup are left in place, because it copies over the top.
+- Before the window fit and before installing AzzyAI, a `before-change-...` copy is made
+  automatically and printed as one line.

@@ -58,6 +58,7 @@ EOF2
         return 0
     fi
 
+    auto_backup "$(dirname "$(dirname "$file")")"
     [ -e "$backup" ] || cp -p "$file" "$backup" || die "Could not back up OptionInfo.lua."
     python3 - "$file" "$fit_w" "$fit_h" "$x" "$y" <<'PYEOF' || die "Could not edit OptionInfo.lua."
 import re, sys

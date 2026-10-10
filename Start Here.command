@@ -51,9 +51,10 @@ while true; do
     echo "  3) Play (clears leftover processes first, then starts the game)"
     echo "  4) View optional extras"
     echo "  5) Open the game folder in Finder"
-    echo "  6) Collect a report to ask for help (doctor)"
-    echo "  7) Uninstall the fix"
-    echo "  8) Quit"
+    echo "  6) Back up your save data"
+    echo "  7) Collect a report to ask for help (doctor)"
+    echo "  8) Uninstall the fix"
+    echo "  9) Quit"
     echo
     printf "Type a number and press Return: "
     read -r choice
@@ -64,10 +65,11 @@ while true; do
         3) bash install.sh play ;;
         4) extras_menu ; continue ;;
         5) bash install.sh open ;;
-        6) bash install.sh doctor ;;
-        7) bash install.sh uninstall ;;
-        8|q|Q|"") exit 0 ;;
-        *) echo "Please type a number from 1 to 8." ;;
+        6) bash install.sh backup ;;
+        7) bash install.sh doctor ;;
+        8) bash install.sh uninstall ;;
+        9|q|Q|"") exit 0 ;;
+        *) echo "Please type a number from 1 to 9." ;;
     esac
     echo
     printf "Press Return to go back to the menu..."

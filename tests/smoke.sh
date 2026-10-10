@@ -113,6 +113,22 @@ start 'C:\users\crossover\AppData\Local\Programs\Fake RO\x.exe'
 out=$(run play); check "play notices the game is running" "$([[ $out == *"already running"* ]] && echo 0 || echo 1)" "$out"
 stop
 
+echo "backup"
+export RO_BACKUP_DIR="$T/backups"
+echo "hotkeys-v1" > "$GAME/savedata/hotkeys.txt"
+out=$(run backup); check "backup creates a copy" "$([ -n "$(ls -d "$T/backups/Fake RO"/savedata-* 2>/dev/null)" ] && echo 0 || echo 1)" "$out"
+check "backup contains the files" "$([ "$(cat "$T/backups/Fake RO"/savedata-*/hotkeys.txt 2>/dev/null)" = hotkeys-v1 ] && echo 0 || echo 1)"
+out=$(run backup list); check "backup list shows it" "$([[ $out == *"savedata-"* ]] && echo 0 || echo 1)" "$out"
+echo "hotkeys-v2" > "$GAME/savedata/hotkeys.txt"
+out=$(run -y backup restore); check "restore puts the backup back" "$([ "$(cat "$GAME/savedata/hotkeys.txt")" = hotkeys-v1 ] && echo 0 || echo 1)" "$out"
+check "restore keeps a before-restore copy" "$([ -n "$(ls -d "$T/backups/Fake RO"/before-restore-* 2>/dev/null)" ] && echo 0 || echo 1)"
+start 'C:\users\crossover\AppData\Local\Programs\Fake RO\x.exe'
+out=$(run -y backup restore); check "restore refuses while the game runs" "$([[ $out == *"game is running"* ]] && echo 0 || echo 1)" "$out"
+stop
+for i in 1 2 3 4 5 6 7 8 9 10 11 12; do sleep 1; run backup >/dev/null; done
+check "only the newest 10 are kept" "$([ "$(ls -d "$T/backups/Fake RO"/* | wc -l | tr -d ' ')" -le 10 ] && echo 0 || echo 1)"
+unset RO_BACKUP_DIR
+
 echo "open"
 rm -f "$T/open.log"; out=$(run open); check "open shows the game folder in Finder" "$([[ -f "$T/open.log" && "$(cat "$T/open.log")" == *"Fake RO" ]] && echo 0 || echo 1)" "$out"
 rm -f "$T/open.log"; run open savedata >/dev/null; check "open savedata" "$([[ "$(cat "$T/open.log" 2>/dev/null)" == *"savedata" ]] && echo 0 || echo 1)"

@@ -6,6 +6,7 @@
 #   bash install.sh uninstall    put the original file back
 #   bash install.sh setup        new installs only: patch the game's setup.exe
 #   bash install.sh play         clear leftover processes, then start the game
+#   bash install.sh backup       copy your save data to ~/Documents/RO Backups (also: backup list, backup restore)
 #   bash install.sh open         show the game folder in Finder (also: open savedata, open bottle)
 #   bash install.sh doctor       print a summary of this setup to paste when asking for help
 # OPTIONAL extras (not needed for the fix):
@@ -36,7 +37,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT" || exit 1
 FIX_DIR="$ROOT/fix"
 
-for part in core fix extras game uaro doctor; do
+for part in core fix extras game uaro backup doctor; do
     # shellcheck source=/dev/null
     . "$ROOT/lib/$part.sh"
 done
@@ -75,7 +76,8 @@ case "${CMD:-install}" in
     launchers) do_launchers ;;
     setup)     do_setup ;;
     play)      do_play ;;
+    backup)    do_backup ;;
     open)      do_open ;;
     doctor)    do_doctor ;;
-    *)         echo "Usage: bash install.sh [install|check|uninstall|setup|play|open|doctor|extras|window|keys|azzyai|launchers] [-y]"; exit 1 ;;
+    *)         echo "Usage: bash install.sh [install|check|uninstall|setup|play|open|backup|doctor|extras|window|keys|azzyai|launchers] [-y]"; exit 1 ;;
 esac

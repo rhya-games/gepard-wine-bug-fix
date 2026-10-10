@@ -13,6 +13,8 @@ Tools for playing Ragnarok Online on a Mac with [CrossOver](https://www.codeweav
   another version the installer tells you whether you need it and how to build one
   ([details](docs/fix.md#other-crossover-versions-or-other-wine-runtimes)).
 - **Play.** Starts the game after clearing leftover Wine processes that can freeze CrossOver.
+- **Backup.** Copies your save data (character settings, hotkeys) to a safe place, and does it
+  automatically before the extras that change it.
 - **Optional extras.** Window size that fits your screen, Mac keyboard settings, launcher icons in
   CrossOver, and, for the uaRO server, AzzyAI and a fix for the first-run setup window.
 
@@ -106,7 +108,9 @@ black screen. Use windowed mode. ([Details](docs/extras.md#known-failure-cmdtab-
 
 - **You cannot find the game folder in Finder:** it is inside the hidden `~/Library` folder. Run
   `bash install.sh open` (menu item 5) to open it. Add `savedata` or `bottle` to open those instead.
-- **You need help:** run `bash install.sh doctor` (menu item 6). It prints and copies a short summary
+- **You want a safety copy of your settings:** run `bash install.sh backup` (menu item 6). It copies
+  your save data to `~/Documents/RO Backups`; `backup restore` puts the newest one back.
+- **You need help:** run `bash install.sh doctor` (menu item 7). It prints and copies a short summary
   of your setup, with your user name removed, to paste where you ask.
 
 More: [docs/troubleshooting.md](docs/troubleshooting.md).
